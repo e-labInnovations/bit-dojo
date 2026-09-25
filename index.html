@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>bit-dojo</title>
+    <meta name="description" content="Learn embedded bitwise register tricks by poking a simulated CH32V003." />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%230b0f14'/><rect x='2' y='5' width='3' height='6' fill='%233ddc97'/><rect x='6.5' y='5' width='3' height='6' fill='%23334'/><rect x='11' y='5' width='3' height='6' fill='%233ddc97'/></svg>" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <header class="top">
+      <a class="brand" href="#/" aria-label="bit-dojo home">
+        <span class="brand-bits" aria-hidden="true"><i></i><i></i><i class="z"></i><i></i></span>
+        <span>bit<b>·</b>dojo</span>
+      </a>
+      <span class="tagline">CH32V003 register practice</span>
+      <nav class="topnav">
+        <a href="#/" data-nav="levels">Levels</a>
+        <a href="#/sandbox" data-nav="sandbox">Sandbox</a>
+        <button id="cheat" type="button">Cheat sheet</button>
+        <button id="theme" type="button" aria-label="Toggle light/dark theme" title="Toggle theme">◐</button>
+      </nav>
+    </header>
+    <div id="app"></div>
+    <dialog id="cheatsheet" aria-labelledby="cs-title">
+      <div class="cs-head">
+        <h1 id="cs-title">Cheat sheet</h1>
+        <button id="cheatsheet-close" type="button" aria-label="Close">✕</button>
+      </div>
+      <div id="cheatsheet-body"></div>
+    </dialog>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
