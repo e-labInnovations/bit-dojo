@@ -1,12 +1,45 @@
 <p align="center"><img src="public/favicon.svg" width="96" height="96" alt="bit-dojo logo"></p>
 
-# bit-dojo
+<h1 align="center">bit-dojo</h1>
 
-**Play it: https://utils.elabins.com/bit-dojo/**
+<p align="center">
+  Learn the bitwise tricks embedded C runs on by writing real register code for a simulated <b>CH32V003</b>.<br>
+  <a href="https://utils.elabins.com/bit-dojo/"><b>▶ Play it in your browser</b></a>
+</p>
 
-Learn the bitwise tricks embedded C runs on by writing real register code against a simulated **CH32V003**.
+<p align="center">
+  <a href="https://utils.elabins.com/bit-dojo/"><img alt="Live site" src="https://img.shields.io/badge/play-utils.elabins.com%2Fbit--dojo-3ddc97"></a>
+  <a href="https://claude.com/claude-code"><img alt="Vibe-coded with Claude Code" src="https://img.shields.io/badge/vibe--coded%20with-Claude%20Code-D97757?logo=claude&logoColor=white"></a>
+  <a href="LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-blue"></a>
+</p>
+
+> [!NOTE]
+> **🤖 This whole project was vibe-coded with Claude, in September 2026.** The C interpreter, the chip simulator, all 24 levels, the step-by-step visualizer, the tests, the logo and this README were written by [Claude Code](https://claude.com/claude-code). [@e-labInnovations](https://github.com/e-labInnovations) directed it through conversation: the ideas, the feedback, and every "that pin is wrong, look again".
 
 You type C, like `GPIOC->CFGLR |= (GPIO_Speed_10MHz | GPIO_CNF_OUT_PP) << (4*1);`. bit-dojo runs it against the chip model and shows every bit before and after. An LED on PC1 lights up when your code is actually right.
+
+## Screenshots
+
+![A level: the "What you need" panel above the editor, and every test case graded bit by bit with the board below](docs/screenshots/level.webp)
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/visualizer.webp" alt="Step-by-step visualizer showing 0x5A AND ~(0xF << 4) column by column with its truth table"></td>
+    <td width="50%"><img src="docs/screenshots/bug.webp" alt="A failing case: using = instead of |= wipes 29 bits, each marked with a red cross"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Step-by-step visualizer:</b> every operator animated in binary</td>
+    <td align="center"><b>Bit-level grading:</b> <code>=</code> instead of <code>|=</code> wipes 29 bits</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/sandbox.webp" alt="Sandbox: the simulated board with the LED on PC1 lit and the RCC clock-enable registers"></td>
+    <td align="center"><img src="docs/screenshots/mobile.webp" width="260" alt="bit-dojo on a phone"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Sandbox:</b> the whole chip, real TSSOP-20 pinout</td>
+    <td align="center"><b>Works on phones</b></td>
+  </tr>
+</table>
 
 ## What's inside
 
