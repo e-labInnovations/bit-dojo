@@ -6,7 +6,7 @@ import { CodeError, Token, tokenize } from './lexer';
 export type CType = 'int' | 'unsigned' | 'uint8_t' | 'uint16_t' | 'uint32_t' | 'int8_t' | 'int16_t' | 'int32_t';
 
 export type Expr =
-  | { k: 'num'; value: number; unsigned: boolean; pos: number }
+  | { k: 'num'; value: number; unsigned: boolean; text: string; pos: number }
   | { k: 'ident'; name: string; pos: number }
   | { k: 'member'; base: string; field: string; pos: number }
   | { k: 'unary'; op: string; arg: Expr; pos: number }
@@ -134,7 +134,7 @@ class Parser {
     if (this.is('++') || this.is('--')) {
       const op = this.next().text;
       this.expect(';', 'every C statement ends with a semicolon');
-      return { k: 'assign', target: this.lvalue(lhs), op: op === '++' ? '+=' : '-=', value: { k: 'num', value: 1, unsigned: false, pos: t.pos }, pos: t.pos };
+      return { k: 'assign', target: this.lvalue(lhs), op: op === '++' ? '+=' : '-=', value: { k: 'num', value: 1, unsigned: false, text: '1', pos: t.pos }, pos: t.pos };
     }
     const opTok = this.peek();
     if (opTok.kind === 'punct' && ASSIGN_OPS.has(opTok.text)) {
@@ -228,7 +228,7 @@ class Parser {
 
   private postfix(): Expr {
     const t = this.next();
-    if (t.kind === 'num') return { k: 'num', value: t.value!, unsigned: !!t.unsigned, pos: t.pos };
+    if (t.kind === 'num') return { k: 'num', value: t.value!, unsigned: !!t.unsigned, text: t.text, pos: t.pos };
     if (t.kind === 'punct' && t.text === '(') {
       const e = this.expr();
       this.expect(')', 'unbalanced parentheses');
@@ -255,4 +255,20 @@ export function parseProgram(src: string): Stmt[] {
 
 export function parseExpression(src: string): Expr {
   return new Parser(tokenize(src)).onlyExpr();
+}
+
+const isLeaf = (e: Expr) => e.k === 'num' || e.k === 'ident' || e.k === 'member';
+
+// Source-like text for a node. Sub-expressions get parentheses so grouping is explicit.
+export function printExpr(e: Expr): string {
+  const wrap = (x: Expr) => (isLeaf(x) || x.k === 'unary' || x.k === 'cast' ? printExpr(x) : `(${printExpr(x)})`);
+  switch (e.k) {
+    case 'num': return e.text;
+    case 'ident': return e.name;
+    case 'member': return `${e.base}->${e.field}`;
+    case 'unary': return e.op + wrap(e.arg);
+    case 'cast': return `(${e.type})` + wrap(e.arg);
+    case 'binary': return `${wrap(e.l)} ${e.op} ${wrap(e.r)}`;
+    case 'cond': return `${wrap(e.test)} ? ${wrap(e.then)} : ${wrap(e.else)}`;
+  }
 }

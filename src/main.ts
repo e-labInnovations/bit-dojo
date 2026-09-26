@@ -6,6 +6,7 @@ import { CaseResult, buildState, rng, runLevel } from './core/runner';
 import { renderBoard } from './ui/board';
 import { CHEATSHEET } from './ui/cheatsheet';
 import { Editor, createEditor, lineCol } from './ui/editor';
+import { renderExplain } from './ui/explain';
 import { renderRegister } from './ui/regview';
 
 // ───────────── storage (every access guarded: private windows / blocked storage)
@@ -102,7 +103,7 @@ function previewCases(level: Level): CaseResult[] {
     const chip = new Chip(state);
     const beforeVars: Record<string, number> = {};
     for (const name of Object.keys(level.vars ?? {})) beforeVars[name] = c.vars?.[name] ?? 0;
-    return { label: c.label, before: snapshot(chip), beforeVars, beforeState: cloneState(state), pass: false, problems: [], notes: [] };
+    return { label: c.label, before: snapshot(chip), beforeVars, beforeState: cloneState(state), pass: false, problems: [], notes: [], steps: [] };
   });
 }
 
@@ -112,6 +113,8 @@ function showLevel(level: Level) {
   let selected = 0;
   let hintsShown = 0;
   let showSolution = false;
+  let explainOpen = level.kind === 'expr'; // survives repaints within this level
+  let autoplayExplain = false; // animate once right after Run
 
   const editor: Editor = createEditor({
     onChange: (v) => store.set('code.' + level.id, v),
@@ -175,6 +178,7 @@ function showLevel(level: Level) {
       errBox.hidden = true;
       editor.setError(null);
     }
+    autoplayExplain = true;
     const failing = results.findIndex((r) => !r.pass);
     selected = failing >= 0 ? failing : Math.min(selected, results.length - 1);
     if (results.every((r) => r.pass) && !solved.has(level.id)) {
@@ -218,6 +222,17 @@ function showLevel(level: Level) {
       detail.append(renderRegister({ key: 'expr', after: v, compact: true }));
       if (level.truthy) detail.append(h('p', { class: 'truth' }, 'As a condition: ', h('b', {}, v !== 0 ? 'true' : 'false')));
     }
+    if (r.steps.length) {
+      const box = h('details', { class: 'explain-box', ...(explainOpen ? { open: '' } : {}) }, h('summary', {}, `Step through how this case ran · ${r.steps.length} step${r.steps.length > 1 ? 's' : ''}`)) as HTMLDetailsElement;
+      const fill = (autoplay: boolean) => box.querySelector('.explain') ?? box.append(renderExplain(r.steps, { autoplay }));
+      if (explainOpen) fill(autoplayExplain);
+      box.addEventListener('toggle', () => {
+        explainOpen = box.open;
+        if (box.open) fill(true);
+      });
+      detail.append(box);
+    }
+    autoplayExplain = false;
     const regs = h('div', { class: 'regs' });
     for (const key of level.show) {
       const before = key.startsWith('var:') ? r.beforeVars[key.slice(4)] : r.before[key];
@@ -279,7 +294,10 @@ function showSandbox() {
   const boardBox = h('div');
   const regsBox = h('section', { class: 'col-result sandbox-regs' });
   const evalIn = h('input', { class: 'eval-in', placeholder: 'e.g. ~(0xF << 4)  or  GPIOD->INDR & (1 << 2)', 'aria-label': 'Expression to evaluate', spellcheck: 'false', autocomplete: 'off' }) as HTMLInputElement;
+  evalIn.value = '1 << 5';
   const evalOut = h('div', { class: 'eval-out' });
+  const evalExplain = h('div', { class: 'eval-explain' });
+  const runExplain = h('details', { class: 'explain-box', hidden: '' }) as HTMLDetailsElement;
 
   function chip() {
     return new Chip(sb.state);
@@ -304,16 +322,21 @@ function showSandbox() {
     }
     const notes = res.interp.allNotes();
     notesBox.replaceChildren(notes.length ? h('ul', { class: 'notes' }, ...notes.map((n) => h('li', { class: 'note-' + n.level }, n.msg))) : '');
+    const steps = res.interp.trace;
+    runExplain.hidden = !steps.length;
+    runExplain.replaceChildren(h('summary', {}, `Step through this run · ${steps.length} step${steps.length === 1 ? '' : 's'}`), renderExplain(steps, { autoplay: runExplain.open }));
     paint();
     doEval();
   }
 
-  function doEval() {
+  function doEval(autoplay = false) {
     const src = evalIn.value.trim();
-    if (!src) return evalOut.replaceChildren(h('span', { class: 'muted' }, 'Result shows here in hex, decimal and binary.'));
+    evalExplain.replaceChildren();
+    if (!src) return evalOut.replaceChildren(h('span', { class: 'muted' }, 'Result shows here in hex, decimal and binary. Press Enter to animate it step by step.'));
     const vars = Object.fromEntries(Object.entries(sb.vars).map(([k, v]) => [k, { ...v }]));
     const r = runExpression(src, chip(), vars);
     if (!r.ok) return evalOut.replaceChildren(h('span', { class: 'eval-err' }, r.error!.message));
+    evalExplain.append(h('div', { class: 'editor-label' }, 'Step by step'), renderExplain(r.interp.trace, { autoplay }));
     const v = r.value!;
     evalOut.replaceChildren(
       renderRegister({ key: 'expr', after: v.v, compact: true }),
@@ -321,7 +344,13 @@ function showSandbox() {
       ...r.interp.allNotes().map((n) => h('div', { class: 'note-inline note-' + n.level }, n.msg)),
     );
   }
-  evalIn.addEventListener('input', doEval);
+  evalIn.addEventListener('input', () => doEval());
+  evalIn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      doEval(true);
+    }
+  });
 
   function paint() {
     const now = snapshot(chip());
@@ -385,7 +414,8 @@ function showSandbox() {
     h('p', { class: 'goal' }, 'A whole simulated CH32V003. Write anything, run it, poke bits, press the button.'),
     h('div', { class: 'editor-box' }, h('div', { class: 'editor-label' }, 'Code'), editor.el, errBox, h('div', { class: 'toolbar' }, runBtn, resetBtn)),
     notesBox,
-    h('div', { class: 'editor-box' }, h('div', { class: 'editor-label' }, 'Evaluate'), evalIn, evalOut),
+    runExplain,
+    h('div', { class: 'editor-box' }, h('div', { class: 'editor-label' }, 'Evaluate'), evalIn, evalOut, evalExplain),
     boardBox,
   );
   app.replaceChildren(h('div', { class: 'layout layout-sandbox' }, h('main', { class: 'level' }, left, regsBox)));

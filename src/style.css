@@ -433,6 +433,99 @@ dialog h3 { font-size: 13px; margin: 14px 0 6px; color: var(--muted); text-trans
   * { transition: none !important; }
 }
 
+/* ───────────── step-by-step visualizer */
+.explain { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.xchips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.xchip {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; max-width: 280px;
+  padding: 4px 10px 4px 4px; border-radius: 99px; border: 1px solid var(--line);
+  background: var(--panel); cursor: pointer; font-size: 12.5px;
+}
+.xchip b { font: 700 11px var(--mono); width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--panel-2); border: 1px solid var(--line-2); flex: none; }
+.xchip code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xchip.on { border-color: var(--text); }
+.xchip.on b { background: var(--one); color: #04130c; border-color: var(--one); }
+.xchip-write b { border-style: dashed; }
+.xstage { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; min-width: 0; }
+.xhead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 6px; }
+.xstep { font: 600 11px var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.xexpr { font: 700 18px var(--mono); word-break: break-word; }
+.xopname { font-size: 12px; color: var(--muted); border: 1px solid var(--line-2); border-radius: 99px; padding: 0 8px; }
+.xcaption { margin: 0 0 12px; font-size: 14px; color: var(--text); }
+.xcaption code { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.xcontrols { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.xbody { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.xgrid { display: flex; flex-direction: column; gap: 6px; overflow-x: auto; max-width: 100%; padding-bottom: 4px; }
+.xrow { display: grid; grid-template-columns: minmax(120px, 190px) max-content minmax(90px, max-content); gap: 12px; align-items: center; }
+.xlabel { display: flex; flex-direction: column; min-width: 0; }
+.xlabel code { font: 600 13px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xlabel small { font-size: 11.5px; color: var(--muted); }
+.xjump { all: unset; font-size: 11.5px; color: var(--accent); cursor: pointer; }
+.xjump:hover { text-decoration: underline; }
+.xbits { display: flex; gap: var(--xg); }
+.xbit {
+  width: var(--xc); height: calc(var(--xc) * 1.25); flex: none;
+  display: grid; place-items: center; border-radius: 4px;
+  font: 700 12px var(--mono);
+  background: var(--panel-2); color: var(--zero); border: 1px solid var(--line);
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.xbit.nib-start { margin-left: 5px; }
+.xcard.no-nib .xbit.nib-start { margin-left: 0; } /* shift cards: keep rows aligned with the sliding strip */
+.xbit.one { background: var(--one-bg); color: var(--one); border-color: color-mix(in srgb, var(--one) 45%, transparent); }
+.xbit.pending { background: transparent; border-style: dashed; color: transparent; }
+.xbit.fill { border-style: dashed; }
+.xbit.col-on { outline: 2px solid var(--up); outline-offset: 1px; }
+.xbit.pop { animation: xpop 0.25s ease-out; }
+@keyframes xpop { 0% { transform: scale(1.35); } 100% { transform: scale(1); } }
+.xidx .xbit { height: auto; background: none; border: 0; color: var(--muted); font-size: 9.5px; font-weight: 500; }
+.xval { display: flex; flex-direction: column; font-size: 12px; min-width: 0; }
+.xval code { font: 700 13px var(--mono); }
+.xval small { color: var(--muted); }
+.xoprow { display: grid; grid-template-columns: minmax(120px, 190px) max-content; gap: 12px; }
+.xoprow span { grid-column: 2; justify-self: center; font: 700 16px var(--mono); color: var(--up); line-height: 1; }
+.xresult { padding-top: 6px; border-top: 2px solid var(--line-2); }
+.xresult .xlabel code { color: var(--up); }
+.xviewport { overflow: hidden; }
+.xstrip { display: flex; gap: var(--xg); will-change: transform; }
+.xstrip.animating { transition: transform 0.28s cubic-bezier(0.3, 0.7, 0.4, 1); }
+.xcount { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13px; margin-bottom: 10px; }
+.xcount small { color: var(--muted); }
+.xmini { display: inline-flex; gap: 2px; }
+.xmini i { font: 700 11px var(--mono); font-style: normal; width: 17px; height: 20px; display: grid; place-items: center; border-radius: 3px; background: var(--panel-2); border: 1px solid var(--line); color: var(--zero); }
+.xmini i.one { background: var(--one-bg); color: var(--one); }
+.xlost { font-size: 13px; color: var(--up); min-height: 1em; margin-top: 6px; }
+.xtruth { border-collapse: collapse; font: 13px var(--mono); }
+.xtruth th { font: 600 11px var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); text-align: left; padding-bottom: 4px; }
+.xtruth td { padding: 2px 6px; }
+.xtruth td.one { color: var(--one); font-weight: 700; }
+.xtruth tr.col-on td { background: var(--up-bg); }
+.xverdict { margin: 10px 0 0; font-size: 15px; }
+.xverdict.is-true b { color: var(--good); }
+.xverdict.is-false b { color: var(--bad); }
+.xeffect { margin: 10px 0 0; font-size: 13.5px; }
+.xhexmap { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font: 12.5px var(--mono); color: var(--muted); }
+.xhexmap b { color: var(--text); }
+.hidden-row { visibility: hidden; }
+.row-in { animation: xrowin 0.35s ease-out; }
+@keyframes xrowin { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.xstage .notes { margin-top: 10px; }
+.explain-box { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
+.explain-box > summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.explain-box[open] > summary { margin-bottom: 10px; }
+@media (max-width: 640px) {
+  .xrow { grid-template-columns: max-content; gap: 4px; }
+  .xoprow { grid-template-columns: max-content; }
+  .xoprow span { grid-column: 1; justify-self: start; }
+  .xval { flex-direction: row; gap: 8px; align-items: baseline; }
+  /* Stacked rows: a separate index row would sit above the label, so number the result row instead. */
+  .xidx { display: none; }
+  .xresult .xbits { padding-bottom: 13px; }
+  .xresult .xbit[data-b] { position: relative; }
+  .xresult .xbit[data-b]::after { content: attr(data-b); position: absolute; top: calc(100% + 2px); font: 500 9px var(--mono); color: var(--muted); }
+}
+
 /* The `font` shorthands above reset ligatures, hence !important. They'd draw |= as ⊨ and -> as →,
    wrong glyphs for people learning C. */
 * { font-variant-ligatures: none !important; font-feature-settings: 'liga' 0, 'calt' 0 !important; }

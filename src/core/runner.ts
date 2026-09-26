@@ -2,7 +2,7 @@
 
 import { Chip, ChipState, External, Note, cloneState, hex, resetState, snapshot } from './chip';
 import { CodeError } from './lexer';
-import { RunResult, Var, runExpression, runProgram } from './interp';
+import { RunResult, Step, Var, runExpression, runProgram } from './interp';
 import type { Level } from './levels';
 
 export interface Case {
@@ -33,6 +33,7 @@ export interface CaseResult {
   pass: boolean;
   problems: string[];
   notes: Note[];
+  steps: Step[]; // trace for the step-by-step visualizer
   error?: CodeError;
 }
 
@@ -74,7 +75,7 @@ export function runCase(level: Level, code: string, c: Case): CaseResult {
 
   const res: RunResult = level.kind === 'expr' ? runExpression(code, chip, vars) : runProgram(code, chip, vars);
   const notes = res.interp.allNotes();
-  const base = { label: c.label, before, beforeVars, beforeState: cloneState(state), notes };
+  const base = { label: c.label, before, beforeVars, beforeState: cloneState(state), notes, steps: res.interp.trace };
   if (!res.ok) return { ...base, pass: false, problems: [res.error!.message], error: res.error };
 
   const after: After = {

@@ -93,3 +93,28 @@ describe('levels', () => {
     expect(runLevel(led, alt).every((r) => r.pass)).toBe(true);
   });
 });
+
+describe('trace', () => {
+  const trace = (src: string) => runExpression(src, new Chip(resetState())).interp.trace;
+
+  it('records operators in evaluation order with operand origins', () => {
+    const t = trace('(GPIO_Speed_10MHz | GPIO_CNF_OUT_PP) << (4*1)');
+    expect(t.map((s) => s.text)).toEqual(['GPIO_Speed_10MHz | GPIO_CNF_OUT_PP', '4 * 1', '(GPIO_Speed_10MHz | GPIO_CNF_OUT_PP) << (4 * 1)']);
+    const last = t[2];
+    expect(last.k === 'binary' && last.a.from === 'step' && last.a.step === 0 && last.b.step === 1).toBe(true);
+    expect(t[0].k === 'binary' && t[0].a.from).toBe('macro');
+  });
+
+  it('turns a compound assignment into op + write steps', () => {
+    const s = resetState();
+    s.regs['RCC->APB2PCENR'] = 0x20;
+    const r = runProgram('RCC->APB2PCENR |= RCC_APB2Periph_GPIOC;', new Chip(s));
+    const [op, write] = r.interp.trace;
+    expect(op.k === 'binary' && op.op === '|' && op.a.from === 'reg' && op.r.v === 0x30).toBe(true);
+    expect(write.k === 'write' && write.stored === 0x30).toBe(true);
+  });
+
+  it('gives a bare value one step', () => {
+    expect(trace('0x20')[0].k).toBe('value');
+  });
+});

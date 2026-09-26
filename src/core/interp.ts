@@ -1,9 +1,10 @@
 // Evaluates parsed C against a Chip, with 32-bit int/unsigned semantics as on RV32.
-// Flags undefined behaviour (bad shift counts, shifting into the sign bit) as notes.
+// Flags undefined behaviour (bad shift counts, shifting into the sign bit) as notes,
+// and records a step-by-step trace of every operator for the visualizer.
 
 import { Chip, MACROS, Note, PERIPHS } from './chip';
 import { CodeError } from './lexer';
-import { CType, Expr, LValue, Stmt, parseExpression, parseProgram } from './parser';
+import { CType, Expr, LValue, Stmt, parseExpression, parseProgram, printExpr } from './parser';
 
 export interface Val {
   v: number; // bit pattern, 0..2^32-1
@@ -14,6 +15,23 @@ export interface Var {
   type: CType;
   value: number;
 }
+
+// Where an operand's value came from, so the visualizer can label it.
+export interface Operand {
+  text: string;
+  val: Val;
+  from: 'literal' | 'macro' | 'reg' | 'var' | 'step';
+  step?: number; // index into the trace when from === 'step'
+}
+
+export type Step =
+  | { k: 'binary'; op: string; a: Operand; b: Operand; r: Val; text: string; notes: Note[] }
+  | { k: 'unary'; op: string; a: Operand; r: Val; text: string; notes: Note[] }
+  | { k: 'cast'; type: CType; a: Operand; r: Val; text: string; notes: Note[] }
+  | { k: 'logic'; op: string; a: Operand; b?: Operand; r: Val; text: string; notes: Note[] } // b missing = short-circuited
+  | { k: 'cond'; test: Operand; chosen: Operand; r: Val; text: string; notes: Note[] }
+  | { k: 'value'; a: Operand; text: string; notes: Note[] } // a whole expression that is just one leaf
+  | { k: 'write'; target: string; op: string; value: Operand; stored: number; effect?: string; text: string; notes: Note[] };
 
 const INT_MAX = 0x7fffffff;
 const toSigned = (v: number) => v | 0;
@@ -32,8 +50,10 @@ function narrow(type: CType, v: number): Val {
 export class Interp {
   vars = new Map<string, Var>();
   notes: Note[] = [];
+  trace: Step[] = [];
   private noteSeen = new Set<string>();
   private steps = 0;
+  private stepOf = new WeakMap<Expr, number>();
 
   constructor(
     public chip: Chip,
@@ -50,6 +70,27 @@ export class Interp {
 
   allNotes(): Note[] {
     return [...this.notes, ...this.chip.notes];
+  }
+
+  // Notes raised since a mark() — attached to the step that caused them.
+  private mark() {
+    return { n: this.notes.length, c: this.chip.notes.length };
+  }
+  private since(m: { n: number; c: number }): Note[] {
+    return [...this.notes.slice(m.n), ...this.chip.notes.slice(m.c)];
+  }
+
+  private operand(e: Expr, val: Val): Operand {
+    const text = printExpr(e);
+    if (e.k === 'num') return { text, val, from: 'literal' };
+    if (e.k === 'member') return { text, val, from: 'reg' };
+    if (e.k === 'ident') return { text, val, from: this.vars.has(e.name) ? 'var' : 'macro' };
+    return { text, val, from: 'step', step: this.stepOf.get(e) };
+  }
+
+  private record(e: Expr | null, step: Step) {
+    this.trace.push(step);
+    if (e) this.stepOf.set(e, this.trace.length - 1);
   }
 
   run(stmts: Stmt[]) {
@@ -72,32 +113,56 @@ export class Interp {
       case 'decl': {
         if (this.vars.has(s.name)) throw new CodeError(`'${s.name}' already exists`, s.pos);
         if (MACROS[s.name] || PERIPHS.has(s.name)) throw new CodeError(`'${s.name}' is already a ch32fun name`, s.pos);
-        const init = s.init ? this.eval(s.init).v : 0;
+        const init = s.init ? this.eval(s.init) : { v: 0, u: false };
         if (!s.init) this.note('warn', `'${s.name}' has no initial value. In real C a local would hold garbage — here it's 0.`);
-        this.vars.set(s.name, { type: s.type, value: narrow(s.type, init).v });
+        const stored = narrow(s.type, init.v).v;
+        this.vars.set(s.name, { type: s.type, value: stored });
+        if (s.init) {
+          this.record(null, { k: 'write', target: s.name, op: '=', value: this.operand(s.init, init), stored, text: `${s.type} ${s.name} = ${printExpr(s.init)}`, notes: [] });
+        }
         return;
       }
       case 'assign': {
+        const target = printExpr(s.target);
         let value: Val;
-        if (s.op === '=') value = this.eval(s.value);
-        else value = this.binop(s.op.slice(0, -1), this.readL(s.target), this.eval(s.value), s.pos);
-        this.writeL(s.target, value.v);
+        let operand: Operand;
+        if (s.op === '=') {
+          value = this.eval(s.value);
+          operand = this.operand(s.value, value);
+        } else {
+          // x op= y is x = x op y: record that binary step explicitly.
+          const op = s.op.slice(0, -1);
+          const a = this.eval(s.target);
+          const b = this.eval(s.value);
+          const m = this.mark();
+          value = this.binop(op, a, b, s.pos);
+          const text = printExpr({ k: 'binary', op, l: s.target, r: s.value, pos: s.pos });
+          this.record(null, { k: 'binary', op, a: this.operand(s.target, a), b: this.operand(s.value, b), r: value, text, notes: this.since(m) });
+          operand = { text, val: value, from: 'step', step: this.trace.length - 1 };
+        }
+        const m = this.mark();
+        const effect = this.writeL(s.target, value.v);
+        const stored = s.target.k === 'ident' ? this.vars.get(s.target.name)!.value : value.v;
+        this.record(null, { k: 'write', target, op: s.op, value: operand, stored, effect, text: `${target} ${s.op} ${printExpr(s.value)}`, notes: this.since(m) });
         return;
       }
     }
   }
 
-  private readL(t: LValue): Val {
-    return this.eval(t);
-  }
-
-  private writeL(t: LValue, v: number) {
+  private writeL(t: LValue, v: number): string | undefined {
     if (t.k === 'member') {
       this.periph(t.base, t.pos);
+      const out = `${t.base}->OUTDR`;
+      const before = this.chip.state.regs[out];
       try {
         this.chip.write(t.base, t.field, v);
       } catch (e) {
         throw new CodeError((e as Error).message, t.pos);
+      }
+      const after = this.chip.state.regs[out];
+      if ((t.field === 'BSHR' || t.field === 'BCR') && before !== undefined) {
+        const h = (x: number) => '0x' + x.toString(16).toUpperCase().padStart(2, '0');
+        return before === after ? `${out} unchanged (${h(after)})` : `${out}: ${h(before)} → ${h(after)}`;
       }
       return;
     }
@@ -106,7 +171,9 @@ export class Interp {
       if (MACROS[t.name]) throw new CodeError(`${t.name} is a constant macro — you can't assign to it`, t.pos);
       throw new CodeError(`'${t.name}' isn't declared. Declare it first, e.g. uint32_t ${t.name} = 0;`, t.pos);
     }
-    cur.value = narrow(cur.type, v).v;
+    const stored = narrow(cur.type, v).v;
+    cur.value = stored;
+    if (stored !== v >>> 0) return `${cur.type} keeps only its low bits`;
   }
 
   private periph(name: string, pos: number) {
@@ -133,25 +200,52 @@ export class Interp {
           throw new CodeError((err as Error).message, e.pos);
         }
       }
-      case 'cast': return narrow(e.type, this.eval(e.arg).v);
-      case 'cond': return this.eval(e.test).v !== 0 ? this.eval(e.then) : this.eval(e.else);
+      case 'cast': {
+        const a = this.eval(e.arg);
+        const r = narrow(e.type, a.v);
+        this.record(e, { k: 'cast', type: e.type, a: this.operand(e.arg, a), r, text: printExpr(e), notes: [] });
+        return r;
+      }
+      case 'cond': {
+        const t = this.eval(e.test);
+        const branch = t.v !== 0 ? e.then : e.else;
+        const r = this.eval(branch);
+        this.record(e, { k: 'cond', test: this.operand(e.test, t), chosen: this.operand(branch, r), r, text: printExpr(e), notes: [] });
+        return r;
+      }
       case 'unary': {
         const a = this.eval(e.arg);
+        let r: Val;
         switch (e.op) {
-          case '~': return { v: ~a.v >>> 0, u: a.u };
-          case '!': return { v: a.v === 0 ? 1 : 0, u: false };
-          case '-': return { v: -a.v >>> 0, u: a.u };
-          default: return a;
+          case '~': r = { v: ~a.v >>> 0, u: a.u }; break;
+          case '!': r = { v: a.v === 0 ? 1 : 0, u: false }; break;
+          case '-': r = { v: -a.v >>> 0, u: a.u }; break;
+          default: r = a;
         }
+        this.record(e, { k: 'unary', op: e.op, a: this.operand(e.arg, a), r, text: printExpr(e), notes: [] });
+        return r;
       }
       case 'binary': {
         if (e.op === '&&' || e.op === '||') {
-          const l = this.eval(e.l).v !== 0;
-          if (e.op === '&&' && !l) return { v: 0, u: false };
-          if (e.op === '||' && l) return { v: 1, u: false };
-          return { v: this.eval(e.r).v !== 0 ? 1 : 0, u: false };
+          const l = this.eval(e.l);
+          const lt = l.v !== 0;
+          const a = this.operand(e.l, l);
+          if ((e.op === '&&' && !lt) || (e.op === '||' && lt)) {
+            const r = { v: lt ? 1 : 0, u: false };
+            this.record(e, { k: 'logic', op: e.op, a, r, text: printExpr(e), notes: [] });
+            return r;
+          }
+          const rv = this.eval(e.r);
+          const r = { v: rv.v !== 0 ? 1 : 0, u: false };
+          this.record(e, { k: 'logic', op: e.op, a, b: this.operand(e.r, rv), r, text: printExpr(e), notes: [] });
+          return r;
         }
-        return this.binop(e.op, this.eval(e.l), this.eval(e.r), e.pos, e);
+        const a = this.eval(e.l);
+        const b = this.eval(e.r);
+        const m = this.mark();
+        const r = this.binop(e.op, a, b, e.pos, e);
+        this.record(e, { k: 'binary', op: e.op, a: this.operand(e.l, a), b: this.operand(e.r, b), r, text: printExpr(e), notes: this.since(m) });
+        return r;
       }
     }
   }
@@ -224,7 +318,14 @@ export function runProgram(src: string, chip: Chip, vars: Record<string, Var> = 
 export function runExpression(src: string, chip: Chip, vars: Record<string, Var> = {}): RunResult {
   const interp = new Interp(chip, vars);
   try {
-    const value = interp.eval(parseExpression(src));
+    const expr = parseExpression(src);
+    const value = interp.eval(expr);
+    // A bare literal/macro/register has no operator steps; show it as one value step.
+    if (!interp.trace.length) {
+      const text = printExpr(expr);
+      const from = expr.k === 'num' ? 'literal' : expr.k === 'member' ? 'reg' : interp.vars.has(text) ? 'var' : 'macro';
+      interp.trace.push({ k: 'value', a: { text, val: value, from }, text, notes: [] });
+    }
     return { ok: true, interp, value };
   } catch (e) {
     if (e instanceof CodeError) return { ok: false, error: e, interp };
