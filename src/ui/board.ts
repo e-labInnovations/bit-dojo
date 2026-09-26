@@ -12,6 +12,26 @@ const DRIVE_TEXT: Record<Drive, string> = {
   off: 'port clock OFF',
 };
 
+// CH32V003F4P6 (TSSOP-20) pinout, top to bottom. Left = pins 1–10, right = pins 20–11.
+const LEFT_PINS = ['PD4', 'PD5', 'PD6', 'PD7', 'PA1', 'PA2', 'VSS', 'PD0', 'VDD', 'PC0'];
+const RIGHT_PINS = ['PD3', 'PD2', 'PD1', 'PC7', 'PC6', 'PC5', 'PC4', 'PC3', 'PC2', 'PC1'];
+const PD2_ROW = RIGHT_PINS.indexOf('PD2');
+const PC1_ROW = RIGHT_PINS.indexOf('PC1');
+const ROW = (i: number) => 32.5 + i * 11; // y centre of pin row i
+
+function chipSvg(): string {
+  const pads = LEFT_PINS.map((_, i) => `<rect x="38" y="${ROW(i) - 2.5}" width="10" height="5" class="pin"/>`).join('') +
+    RIGHT_PINS.map((_, i) => `<rect x="136" y="${ROW(i) - 2.5}" width="10" height="5" class="pin${i === PD2_ROW || i === PC1_ROW ? ' pin-used' : ''}"/>`).join('');
+  const labels = LEFT_PINS.map((n, i) => `<text x="50" y="${ROW(i) + 2.3}" class="pin-name">${n}</text>`).join('') +
+    RIGHT_PINS.map((n, i) => `<text x="134" y="${ROW(i) + 2.3}" class="pin-name pin-name-r${i === PD2_ROW || i === PC1_ROW ? ' pin-name-used' : ''}">${n}</text>`).join('');
+  return `${pads}
+      <rect x="46" y="22" width="92" height="120" rx="3" class="chip-body"/>
+      <path d="M86 22 a6 6 0 0 0 12 0" class="chip-notch"/>
+      ${labels}
+      <text x="92" y="80" class="chip-text">CH32V003</text>
+      <text x="92" y="91" class="chip-sub">F4P6</text>`;
+}
+
 export interface BoardOpts {
   chip: Chip;
   interactive?: boolean;
@@ -28,39 +48,35 @@ export function renderBoard(o: BoardOpts): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = `board led-${led}${pressed ? ' pressed' : ''}${o.interactive ? ' interactive' : ''}`;
   wrap.innerHTML = `
-  <svg viewBox="0 0 360 170" role="img" aria-label="Board: LED ${led}, button ${pressed ? 'pressed' : 'released'}">
+  <svg viewBox="0 0 360 180" role="img" aria-label="Board: LED ${led}, button ${pressed ? 'pressed' : 'released'}">
     <defs>
       <radialGradient id="glow" cx="50%" cy="50%" r="50%">
         <stop offset="0%" stop-color="var(--led)" stop-opacity=".9"/>
         <stop offset="100%" stop-color="var(--led)" stop-opacity="0"/>
       </radialGradient>
     </defs>
-    <rect x="4" y="4" width="352" height="162" rx="10" class="pcb"/>
+    <rect x="4" y="4" width="352" height="172" rx="10" class="pcb"/>
     <g class="chip">
-      ${Array.from({ length: 10 }, (_, i) => `<rect x="44" y="${30 + i * 11}" width="10" height="5" class="pin"/><rect x="126" y="${30 + i * 11}" width="10" height="5" class="pin"/>`).join('')}
-      <rect x="52" y="22" width="76" height="120" rx="3" class="chip-body"/>
-      <circle cx="62" cy="32" r="3" class="chip-dot"/>
-      <text x="90" y="78" class="chip-text">CH32V003</text>
-      <text x="90" y="92" class="chip-sub">F4P6</text>
+      ${chipSvg()}
     </g>
     <!-- Traces first, so the parts sit on top of them. Each trace runs to the part's centre. -->
-    <path d="M136 43 H170 V38 H272" class="trace trace-pc1"/>
-    <path d="M272 38 H320 V62" class="trace"/>
-    <path d="M136 108 H270" class="trace trace-pd2"/>
-    <path d="M270 108 H320 V132" class="trace"/>
-    <text x="142" y="36" class="pin-label">PC1</text>
-    <text x="142" y="102" class="pin-label">PD2</text>
+    <path d="M146 ${ROW(PD2_ROW)} H270" class="trace trace-pd2"/>
+    <path d="M270 ${ROW(PD2_ROW)} H320 V62" class="trace"/>
+    <path d="M146 ${ROW(PC1_ROW)} H272" class="trace trace-pc1"/>
+    <path d="M272 ${ROW(PC1_ROW)} H320 V150" class="trace"/>
+    <text x="152" y="${ROW(PD2_ROW) - 6}" class="pin-label">PD2</text>
+    <text x="152" y="${ROW(PC1_ROW) - 6}" class="pin-label">PC1</text>
     <text x="316" y="76" class="gnd">GND</text>
-    <text x="316" y="146" class="gnd">GND</text>
-    <!-- PC1 → resistor → LED → GND -->
-    <rect x="186" y="33" width="26" height="10" rx="2" class="resistor"/>
-    <circle cx="272" cy="38" r="26" fill="url(#glow)" class="led-glow"/>
-    <circle cx="272" cy="38" r="10" class="led"/>
-    <!-- PD2 → button → GND -->
+    <text x="316" y="164" class="gnd">GND</text>
+    <!-- PD2 (pin 19) → button → GND -->
     <g class="btn" ${o.interactive ? 'role="button" tabindex="0" aria-label="Press button on PD2"' : ''}>
-      <rect x="250" y="92" width="40" height="32" rx="4" class="btn-base"/>
-      <circle cx="270" cy="108" r="${pressed ? 9 : 11}" class="btn-cap"/>
+      <rect x="250" y="${ROW(PD2_ROW) - 16}" width="40" height="32" rx="4" class="btn-base"/>
+      <circle cx="270" cy="${ROW(PD2_ROW)}" r="${pressed ? 9 : 11}" class="btn-cap"/>
     </g>
+    <!-- PC1 (pin 11) → resistor → LED → GND -->
+    <rect x="190" y="${ROW(PC1_ROW) - 5}" width="26" height="10" rx="2" class="resistor"/>
+    <circle cx="272" cy="${ROW(PC1_ROW)}" r="26" fill="url(#glow)" class="led-glow"/>
+    <circle cx="272" cy="${ROW(PC1_ROW)}" r="10" class="led"/>
   </svg>
   <div class="board-status">
     <div><b>PC1</b> ${DRIVE_TEXT[pc1]} → LED <b class="st-${led}">${led === 'dim' ? 'faint glow' : led.toUpperCase()}</b></div>

@@ -361,9 +361,13 @@ button.bit:hover { border-color: var(--text); }
 .pcb { fill: var(--pcb); }
 .pin { fill: #c8ccd2; }
 .chip-body { fill: #16181c; stroke: #2a2e35; }
-.chip-dot { fill: #2f343c; }
-.chip-text { fill: #cfd4db; font: 700 11px var(--mono); text-anchor: middle; }
-.chip-sub { fill: #8a929c; font: 9px var(--mono); text-anchor: middle; }
+.chip-notch { fill: #2f343c; }
+.pin-used { fill: var(--pcb-line); }
+.pin-name { fill: #8a929c; font: 600 6.5px var(--mono); }
+.pin-name-r { text-anchor: end; }
+.pin-name-used { fill: #e9e2c9; }
+.chip-text { fill: #cfd4db; font: 700 8.5px var(--mono); text-anchor: middle; }
+.chip-sub { fill: #8a929c; font: 7px var(--mono); text-anchor: middle; }
 .trace { fill: none; stroke: var(--pcb-line); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 .pin-label { fill: #e9e2c9; font: 700 10px var(--mono); }
 .gnd { fill: #e9e2c9; font: 9px var(--mono); text-anchor: middle; }
