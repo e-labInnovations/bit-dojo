@@ -1,4 +1,8 @@
+<p align="center"><img src="public/favicon.svg" width="96" height="96" alt="bit-dojo logo"></p>
+
 # bit-dojo
+
+**Play it: https://utils.elabins.com/bit-dojo/**
 
 Learn the bitwise tricks embedded C runs on by writing real register code against a simulated **CH32V003**.
 
@@ -34,7 +38,7 @@ npx -y pnpm@11 test       # C semantics, the chip model, and every level's solut
 npx -y pnpm@11 build      # static site in dist/
 ```
 
-`dist/` is plain static files with relative paths, so any static host works, including GitHub Pages.
+`dist/` is plain static files with relative paths, so any static host works. Pushing to `main` deploys to GitHub Pages through `.github/workflows/pages.yml`. The absolute URLs used for the canonical link, Open Graph and `sitemap.xml` come from `SITE_URL`, which defaults to `https://utils.elabins.com/bit-dojo/`. Override it with `SITE_URL=https://example.com/ npx -y pnpm@11 build`.
 
 ## Layout
 

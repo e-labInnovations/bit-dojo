@@ -3,9 +3,61 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>bit-dojo</title>
-    <meta name="description" content="Learn embedded bitwise register tricks by poking a simulated CH32V003." />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%230b0f14'/><rect x='2' y='5' width='3' height='6' fill='%233ddc97'/><rect x='6.5' y='5' width='3' height='6' fill='%23334'/><rect x='11' y='5' width='3' height='6' fill='%233ddc97'/></svg>" />
+    <title>bit-dojo — Learn bitwise register tricks on a CH32V003</title>
+    <meta name="description" content="Free interactive game to learn embedded C bitwise operations: set, clear, toggle and test bits, write register fields, and debug real CH32V003 GPIO code in your browser." />
+    <meta name="author" content="e-labInnovations" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="%SITE_URL%" />
+
+    <meta name="theme-color" content="#f4f1ea" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0a0e13" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
+
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="favicon-48.png" sizes="48x48" type="image/png" />
+    <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="manifest" href="site.webmanifest" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="bit-dojo" />
+    <meta property="og:url" content="%SITE_URL%" />
+    <meta property="og:title" content="bit-dojo — Learn bitwise register tricks on a CH32V003" />
+    <meta property="og:description" content="Write real register code for a simulated RISC-V microcontroller and watch every bit change. 24 levels, an animated binary visualizer and a sandbox. Free, in your browser." />
+    <meta property="og:image" content="%SITE_URL%og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="bit-dojo logo with a GPIOC->CFGLR line of C and its 32 bits" />
+    <meta property="og:locale" content="en_US" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="bit-dojo — Learn bitwise register tricks on a CH32V003" />
+    <meta name="twitter:description" content="Write real register code for a simulated RISC-V microcontroller and watch every bit change. Free, in your browser." />
+    <meta name="twitter:image" content="%SITE_URL%og-image.png" />
+    <meta name="twitter:image:alt" content="bit-dojo logo with a GPIOC->CFGLR line of C and its 32 bits" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": ["WebApplication", "LearningResource"],
+        "name": "bit-dojo",
+        "url": "%SITE_URL%",
+        "image": "%SITE_URL%og-image.png",
+        "description": "Free interactive game to learn embedded C bitwise operations on a simulated CH32V003 RISC-V microcontroller.",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Any (web browser)",
+        "browserRequirements": "Requires JavaScript",
+        "inLanguage": "en",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "learningResourceType": ["Interactive game", "Simulation", "Exercise"],
+        "educationalLevel": "Beginner",
+        "teaches": ["Bitwise operators in C", "Bit masks and shifts", "Register fields", "GPIO configuration on the CH32V003", "Embedded C debugging"],
+        "keywords": "bitwise operations, bit manipulation, embedded C, register programming, CH32V003, RISC-V, GPIO, microcontroller",
+        "author": { "@type": "Person", "name": "e-labInnovations", "url": "https://github.com/e-labInnovations" },
+        "license": "https://opensource.org/licenses/MIT"
+      }
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
@@ -13,18 +65,18 @@
   <body>
     <header class="top">
       <a class="brand" href="#/" aria-label="bit-dojo home">
-        <span class="brand-bits" aria-hidden="true"><i></i><i></i><i class="z"></i><i></i></span>
+        <img class="brand-logo" src="favicon.svg" width="28" height="28" alt="" />
         <span>bit<b>·</b>dojo</span>
       </a>
       <span class="tagline">CH32V003 register practice</span>
-      <nav class="topnav">
+      <nav class="topnav" aria-label="Main">
         <a href="#/" data-nav="levels">Levels</a>
         <a href="#/sandbox" data-nav="sandbox">Sandbox</a>
         <button id="cheat" type="button">Cheat sheet</button>
         <button id="theme" type="button" aria-label="Toggle light/dark theme" title="Toggle theme">◐</button>
       </nav>
     </header>
-    <div id="app"></div>
+    <div id="app"><!--seo-content--></div>
     <dialog id="cheatsheet" aria-labelledby="cs-title">
       <div class="cs-head">
         <h1 id="cs-title">Cheat sheet</h1>

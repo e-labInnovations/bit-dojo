@@ -112,6 +112,7 @@ function previewCases(level: Level): CaseResult[] {
 function showLevel(level: Level) {
   const idx = LEVELS.indexOf(level);
   const goal = deriveGoal(level);
+  document.title = `${level.title} · Level ${idx + 1} · bit-dojo`;
   let results: CaseResult[] | null = null;
   let selected = 0;
   let hintsShown = 0;
@@ -307,6 +308,7 @@ const sb: { state: ChipState; prev: Record<string, number>; vars: Record<string,
 sb.prev = snapshot(new Chip(sb.state));
 
 function showSandbox() {
+  document.title = 'Sandbox · bit-dojo — simulated CH32V003';
   const editor = createEditor({
     onChange: (v) => store.set('sandbox', v),
     onRun: run,

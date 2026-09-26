@@ -6,9 +6,9 @@
   "type": "module",
   "packageManager": "pnpm@11.28.0",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview",
+    "dev": "vite --configLoader runner",
+    "build": "tsc --noEmit && vite build --configLoader runner",
+    "preview": "vite preview --configLoader runner",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

@@ -1,7 +1,7 @@
 // The curriculum. Every level runs against several starting states — some random —
 // so code that only works for one lucky value (e.g. `=` instead of `|=`) fails.
 
-import { ChipState } from './chip';
+import type { ChipState } from './chip';
 import type { CType } from './parser';
 import type { After, Case, Check, Rng } from './runner';
 

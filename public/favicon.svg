@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>bit-dojo</title>
+  <rect width="64" height="64" rx="14" fill="#0b0f14"/>
+  <g>
+    <rect x="8" y="15" width="10" height="28" rx="3" fill="#3ddc97"/>
+    <rect x="21" y="15" width="10" height="28" rx="3" fill="#3ddc97"/>
+    <rect x="34" y="15" width="10" height="28" rx="3" fill="#26323f"/>
+    <rect x="47" y="15" width="10" height="28" rx="3" fill="#3ddc97"/>
+  </g>
+  <rect x="8" y="48" width="49" height="5" rx="2.5" fill="#ffb547"/>
+</svg>

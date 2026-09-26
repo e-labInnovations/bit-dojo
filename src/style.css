@@ -131,9 +131,7 @@ button { font: inherit; color: inherit; }
 .brand { display: flex; align-items: center; gap: 10px; color: var(--text); font: 700 18px var(--mono); letter-spacing: -0.02em; }
 .brand:hover { text-decoration: none; }
 .brand b { color: var(--one); }
-.brand-bits { display: inline-flex; gap: 2px; }
-.brand-bits i { width: 6px; height: 16px; border-radius: 2px; background: var(--one); }
-.brand-bits i.z { background: var(--zero); }
+.brand-logo { display: block; border-radius: 7px; }
 .tagline { color: var(--muted); font-size: 13px; }
 .topnav { margin-left: auto; display: flex; gap: 4px; align-items: center; }
 .topnav a, .topnav button {
@@ -170,7 +168,6 @@ button { font: inherit; color: inherit; }
 @media (max-width: 560px) {
   .top { padding: 8px 16px; gap: 8px; }
   .topnav a, .topnav button { padding: 6px 8px; font-size: 13px; }
-  .brand-bits { display: none; }
 }
 
 /* ───────────── sidebar */
@@ -525,6 +522,12 @@ dialog h3 { font-size: 13px; margin: 14px 0 6px; color: var(--muted); text-trans
   .xresult .xbit[data-b] { position: relative; }
   .xresult .xbit[data-b]::after { content: attr(data-b); position: absolute; top: calc(100% + 2px); font: 500 9px var(--mono); color: var(--muted); }
 }
+
+/* ───────────── crawlable fallback (replaced by the app once JS runs) */
+.seo-fallback { max-width: 820px; margin: 0 auto; padding: 32px 20px 60px; }
+.seo-fallback h1 { font-size: 30px; }
+.seo-fallback h3 { margin: 18px 0 4px; font-size: 15px; }
+.seo-fallback ol { margin: 0; padding-left: 22px; }
 
 /* ───────────── "what you need" goal panel */
 .goal-panel { margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; display: flex; flex-direction: column; gap: 12px; }
