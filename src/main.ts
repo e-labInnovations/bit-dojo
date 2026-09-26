@@ -6,7 +6,9 @@ import { CaseResult, buildState, rng, runLevel } from './core/runner';
 import { renderBoard } from './ui/board';
 import { CHEATSHEET } from './ui/cheatsheet';
 import { Editor, createEditor, lineCol } from './ui/editor';
+import { deriveGoal } from './core/goal';
 import { renderExplain } from './ui/explain';
+import { renderGoal } from './ui/goalview';
 import { renderRegister } from './ui/regview';
 
 // ───────────── storage (every access guarded: private windows / blocked storage)
@@ -254,6 +256,7 @@ function showLevel(level: Level) {
     h('h1', {}, level.title, solved.has(level.id) ? h('span', { class: 'solved-badge' }, 'solved') : null),
     h('p', { class: 'goal' }, level.goal),
     h('div', { class: 'brief', html: level.brief }),
+    renderGoal(deriveGoal(level)),
     h('div', { class: 'editor-box' }, h('div', { class: 'editor-label' }, level.kind === 'expr' ? 'Expression' : 'Code'), editor.el, errBox, h('div', { class: 'toolbar' }, runBtn, hintBtn, solBtn, resetBtn)),
     hintBox,
     h(

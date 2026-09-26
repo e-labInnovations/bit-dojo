@@ -526,6 +526,43 @@ dialog h3 { font-size: 13px; margin: 14px 0 6px; color: var(--muted); text-trans
   .xresult .xbit[data-b]::after { content: attr(data-b); position: absolute; top: calc(100% + 2px); font: 500 9px var(--mono); color: var(--muted); }
 }
 
+/* ───────────── "what you need" goal panel */
+.goal-panel { margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; display: flex; flex-direction: column; gap: 12px; }
+.goal-panel .editor-label { margin-bottom: -4px; }
+.gtarget { min-width: 0; }
+.ghead code { font: 700 13.5px var(--mono); }
+.gsentence { margin: 2px 0 8px; font-size: 14px; }
+.gsentence code { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.gstrip-scroll { overflow-x: auto; padding-bottom: 4px; display: flex; flex-direction: column; gap: 3px; }
+/* When a strip is too wide, start scrolled to bit 0 — the low bits are where the action usually is. */
+.gstrip-scroll, .bits-scroll { direction: rtl; }
+.gstrip-scroll > *, .bits-scroll > * { direction: ltr; }
+.gstrip { display: flex; gap: 2px; width: max-content; }
+.gbit {
+  --gc: clamp(15px, 1.1vw, 19px);
+  width: var(--gc); height: calc(var(--gc) * 1.25); flex: none;
+  display: grid; place-items: center; border-radius: 4px;
+  font: 700 11px var(--mono); border: 1px solid var(--line); background: var(--panel-2); color: var(--muted);
+}
+.gbit.nib-start, .gnib.nib-start { margin-left: 5px; }
+.gidx .gbit { height: auto; border: 0; background: none; font-size: 9px; font-weight: 500; }
+.g-set { background: var(--one-bg); color: var(--one); border-color: var(--one); box-shadow: 0 0 0 1px var(--one); }
+.g-clear { background: var(--down-bg); color: var(--down); border-color: var(--down); box-shadow: 0 0 0 1px var(--down); }
+.g-flip { background: var(--up-bg); color: var(--up); border-color: var(--up); box-shadow: 0 0 0 1px var(--up); }
+.g-keep { color: var(--zero); }
+.g-any { background: repeating-linear-gradient(135deg, transparent 0 3px, color-mix(in srgb, var(--line) 80%, transparent) 3px 5px); color: var(--muted); }
+.g-copy { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); border-color: var(--accent); font-size: 9.5px; letter-spacing: -0.04em; }
+.g-test { background: var(--up-bg); color: var(--up); border-color: var(--up); box-shadow: 0 0 0 1px var(--up); }
+.g-ignore { opacity: 0.45; }
+.gunder .gnib { width: calc(4 * var(--gc, 17px) + 6px); flex: none; font: 10px/1.25 var(--mono); color: var(--muted); text-align: center; padding: 3px 1px; border-radius: 4px; background: var(--panel-2); --gc: clamp(15px, 1.1vw, 19px); }
+.gunder .gnib b { display: block; color: var(--text); }
+.gunder .gnib.empty { background: none; }
+.gextras-title { font: 600 11px var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: -6px; }
+.gextras { margin: 0; padding-left: 18px; font-size: 14px; }
+.glegend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8px; }
+.glegend span { display: inline-flex; align-items: center; gap: 6px; }
+.glegend .gbit { --gc: 16px; }
+
 /* The `font` shorthands above reset ligatures, hence !important. They'd draw |= as ⊨ and -> as →,
    wrong glyphs for people learning C. */
 * { font-variant-ligatures: none !important; font-feature-settings: 'liga' 0, 'calt' 0 !important; }

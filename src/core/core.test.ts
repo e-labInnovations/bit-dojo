@@ -3,6 +3,7 @@ import { Chip, resetState } from './chip';
 import { runExpression, runProgram } from './interp';
 import { LEVELS } from './levels';
 import { runLevel } from './runner';
+import { deriveGoal } from './goal';
 
 const evalExpr = (src: string) => {
   const r = runExpression(src, new Chip(resetState()));
@@ -116,5 +117,47 @@ describe('trace', () => {
 
   it('gives a bare value one step', () => {
     expect(trace('0x20')[0].k).toBe('value');
+  });
+});
+
+describe('goal derivation', () => {
+  const goalOf = (id: string) => deriveGoal(LEVELS.find((l) => l.id === id)!);
+  const kinds = (id: string, key: string) => goalOf(id).targets.find((t) => t.key === key)!.bits.map((b) => b.k);
+
+  it('set / clear / flip', () => {
+    const set = kinds('set-bit', 'var:reg');
+    expect(set[3]).toBe('set');
+    expect(set.filter((k) => k === 'keep')).toHaveLength(31);
+    expect(kinds('clear-bit', 'var:reg')[7]).toBe('clear');
+    expect(kinds('toggle-bit', 'var:reg')[0]).toBe('flip');
+  });
+
+  it('writes a CFGLR nibble', () => {
+    const k = kinds('pc1-output', 'GPIOC->CFGLR');
+    expect(k.slice(4, 8)).toEqual(['set', 'clear', 'clear', 'clear']);
+    expect(k[0]).toBe('keep');
+  });
+
+  it('finds copied bits when reading a field', () => {
+    const val = goalOf('read-field').targets.find((t) => t.key === 'var:val')!.bits;
+    expect(val[0]).toEqual({ k: 'copy', from: 'var:reg', bit: 8, invert: false });
+    expect(val[3]).toEqual({ k: 'copy', from: 'var:reg', bit: 11, invert: false });
+    expect(val[4].k).toBe('clear');
+  });
+
+  it('describes expression targets', () => {
+    expect(goalOf('one-bit').exprValue).toBe(32);
+    expect(goalOf('test-bit').truthy).toEqual({ key: 'var:reg', bit: 2, invert: false });
+    expect(goalOf('read-button').truthy).toEqual({ key: 'GPIOD->INDR', bit: 2, invert: true });
+  });
+
+  it('marks masked bits as any and lists extra rules', () => {
+    const g = goalOf('blink-from-reset');
+    expect(g.targets.find((t) => t.key === 'GPIOC->CFGLR')!.bits[5].k).toBe('any');
+    expect(g.extras.map((e) => e.label)).toContain('LED on');
+  });
+
+  it('never leaves a checked bit unexplained', () => {
+    for (const l of LEVELS) for (const t of deriveGoal(l).targets) expect(t.bits.some((b) => b.k === 'vary'), `${l.id} ${t.key}`).toBe(false);
   });
 });
