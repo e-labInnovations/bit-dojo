@@ -43,23 +43,24 @@ export function renderBoard(o: BoardOpts): HTMLElement {
       <text x="90" y="78" class="chip-text">CH32V003</text>
       <text x="90" y="92" class="chip-sub">F4P6</text>
     </g>
-    <!-- PC1 → resistor → LED → GND -->
-    <path d="M136 43 H170 V38 H262" class="trace trace-pc1"/>
+    <!-- Traces first, so the parts sit on top of them. Each trace runs to the part's centre. -->
+    <path d="M136 43 H170 V38 H272" class="trace trace-pc1"/>
+    <path d="M272 38 H320 V62" class="trace"/>
+    <path d="M136 108 H270" class="trace trace-pd2"/>
+    <path d="M270 108 H320 V132" class="trace"/>
     <text x="142" y="36" class="pin-label">PC1</text>
+    <text x="142" y="102" class="pin-label">PD2</text>
+    <text x="316" y="76" class="gnd">GND</text>
+    <text x="316" y="146" class="gnd">GND</text>
+    <!-- PC1 → resistor → LED → GND -->
     <rect x="186" y="33" width="26" height="10" rx="2" class="resistor"/>
     <circle cx="272" cy="38" r="26" fill="url(#glow)" class="led-glow"/>
     <circle cx="272" cy="38" r="10" class="led"/>
-    <path d="M282 38 H320 V62" class="trace"/>
-    <text x="316" y="76" class="gnd">GND</text>
     <!-- PD2 → button → GND -->
-    <path d="M136 108 H250" class="trace trace-pd2"/>
-    <text x="142" y="102" class="pin-label">PD2</text>
     <g class="btn" ${o.interactive ? 'role="button" tabindex="0" aria-label="Press button on PD2"' : ''}>
       <rect x="250" y="92" width="40" height="32" rx="4" class="btn-base"/>
       <circle cx="270" cy="108" r="${pressed ? 9 : 11}" class="btn-cap"/>
     </g>
-    <path d="M290 108 H320 V132" class="trace"/>
-    <text x="316" y="146" class="gnd">GND</text>
   </svg>
   <div class="board-status">
     <div><b>PC1</b> ${DRIVE_TEXT[pc1]} → LED <b class="st-${led}">${led === 'dim' ? 'faint glow' : led.toUpperCase()}</b></div>
