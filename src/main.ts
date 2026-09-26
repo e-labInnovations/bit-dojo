@@ -9,7 +9,7 @@ import { Editor, createEditor, lineCol } from './ui/editor';
 import { deriveGoal } from './core/goal';
 import { renderExplain } from './ui/explain';
 import { renderGoal } from './ui/goalview';
-import { renderRegister } from './ui/regview';
+import { BitMark, renderRegister } from './ui/regview';
 
 // ───────────── storage (every access guarded: private windows / blocked storage)
 const store = {
@@ -111,6 +111,7 @@ function previewCases(level: Level): CaseResult[] {
 
 function showLevel(level: Level) {
   const idx = LEVELS.indexOf(level);
+  const goal = deriveGoal(level);
   let results: CaseResult[] | null = null;
   let selected = 0;
   let hintsShown = 0;
@@ -192,6 +193,28 @@ function showLevel(level: Level) {
     paintResults();
   }
 
+  // Per-bit ✓/✗ against this case's exact expected value. Bits the level requires get a
+  // mark either way; "keep" bits only get one when they were broken.
+  function marksFor(key: string, before: number, after: number, r: CaseResult): (BitMark | null)[] | undefined {
+    const target = goal.targets.find((t) => t.key === key);
+    const chk = level.expect?.({ regs: r.before, vars: r.beforeVars, state: r.beforeState }).find((c) => 'key' in c && c.key === key);
+    if (!target || !chk || !('key' in chk)) return undefined;
+    const mask = chk.mask ?? 0xffffffff;
+    return target.bits.map((g, b) => {
+      if (!((mask >>> b) & 1) || g.k === 'any') return null;
+      const want = (chk.value >>> b) & 1;
+      const was = (before >>> b) & 1;
+      const got = (after >>> b) & 1;
+      const ok = got === want;
+      if (g.k === 'keep') return ok ? null : { ok, tip: `must keep its value ${was}` };
+      const rule =
+        g.k === 'flip' ? `must flip (${was} → ${want})`
+        : g.k === 'copy' ? `must copy ${g.from.replace('var:', '')} bit ${g.bit} (${want})`
+        : `must be ${want}${ok && was === want ? ' — already was' : ''}`;
+      return { ok, tip: rule };
+    });
+  }
+
   function paintResults() {
     const list = results ?? previewCases(level);
     const allPass = !!results && results.every((r) => r.pass);
@@ -239,7 +262,7 @@ function showLevel(level: Level) {
     for (const key of level.show) {
       const before = key.startsWith('var:') ? r.beforeVars[key.slice(4)] : r.before[key];
       const after = r.after ? (key.startsWith('var:') ? r.after.vars[key.slice(4)] : r.after.regs[key]) : before;
-      regs.append(renderRegister({ key, before: r.after ? before : undefined, after }));
+      regs.append(renderRegister({ key, before: r.after ? before : undefined, after, marks: r.after ? marksFor(key, before, after, r) : undefined }));
     }
     if (level.show.length) {
       detail.append(h('h4', { class: 'regs-title' }, r.after ? 'Before → after' : 'Starting state'), regs);
@@ -256,7 +279,7 @@ function showLevel(level: Level) {
     h('h1', {}, level.title, solved.has(level.id) ? h('span', { class: 'solved-badge' }, 'solved') : null),
     h('p', { class: 'goal' }, level.goal),
     h('div', { class: 'brief', html: level.brief }),
-    renderGoal(deriveGoal(level)),
+    renderGoal(goal),
     h('div', { class: 'editor-box' }, h('div', { class: 'editor-label' }, level.kind === 'expr' ? 'Expression' : 'Code'), editor.el, errBox, h('div', { class: 'toolbar' }, runBtn, hintBtn, solBtn, resetBtn)),
     hintBox,
     h(

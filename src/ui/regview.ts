@@ -7,6 +7,14 @@ const SPEED = ['in', '10MHz', '2MHz', '50MHz'];
 const IN_CNF = ['analog', 'floating', 'pull-up/down', 'reserved'];
 const OUT_CNF = ['push-pull', 'open-drain', 'AF push-pull', 'AF open-drain'];
 
+// When a bit strip is wider than its box, start scrolled to bit 0 — the low bits are
+// where the action usually is. Runs once the element is laid out.
+export function scrollToLowBits(scroller: HTMLElement) {
+  requestAnimationFrame(() => {
+    scroller.scrollLeft = scroller.scrollWidth;
+  });
+}
+
 export function decodePin(nibble: number) {
   const mode = nibble & 3;
   const cnf = nibble >> 2;
@@ -35,6 +43,12 @@ export interface RegViewOpts {
   after: number;
   onToggle?: (bit: number) => void;
   compact?: boolean;
+  marks?: (BitMark | null)[]; // index = bit: did this bit meet the level's rule?
+}
+
+export interface BitMark {
+  ok: boolean;
+  tip: string;
 }
 
 export function renderRegister(o: RegViewOpts): HTMLElement {
@@ -59,6 +73,11 @@ export function renderRegister(o: RegViewOpts): HTMLElement {
   }
   const dec = el('span', 'reg-dec', `= ${o.after >>> 0}${(o.after | 0) < 0 ? ` (int ${o.after | 0})` : ''}`);
   head.append(val, dec);
+  const marks = (o.marks ?? []).filter((m): m is BitMark => !!m);
+  if (marks.length) {
+    const bad = marks.filter((m) => !m.ok).length;
+    head.append(el('span', 'mark-sum ' + (bad ? 'mark-sum-bad' : 'mark-sum-ok'), bad ? `✗ ${bad} bit${bad > 1 ? 's' : ''} wrong` : `✓ ${marks.length} required bit${marks.length > 1 ? 's' : ''} right`));
+  }
   box.append(head);
   if (def && !o.compact) {
     const about = el('div', 'reg-about', def.about);
@@ -89,6 +108,11 @@ export function renderRegister(o: RegViewOpts): HTMLElement {
     const f = def?.fields.find((f) => b >= f.lsb && b < f.lsb + f.width);
     if (f) tip.push(f.name);
     if (cell.classList.contains('reserved')) tip.push('reserved');
+    const mark = o.marks?.[b];
+    if (mark) {
+      cell.classList.add(mark.ok ? 'mark-ok' : 'mark-bad');
+      tip.push(`${mark.ok ? '✓' : '✗'} ${mark.tip}`);
+    }
     cell.title = tip.join(' · ');
     if (o.onToggle) {
       (cell as HTMLButtonElement).type = 'button';
@@ -138,6 +162,7 @@ export function renderRegister(o: RegViewOpts): HTMLElement {
   }
   scroll.append(grid);
   box.append(scroll);
+  scrollToLowBits(scroll);
 
   // One-bit named flags (RCC): a readable list is better than tiny labels.
   if (def && def.periph === 'RCC') {

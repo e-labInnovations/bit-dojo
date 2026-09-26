@@ -534,9 +534,6 @@ dialog h3 { font-size: 13px; margin: 14px 0 6px; color: var(--muted); text-trans
 .gsentence { margin: 2px 0 8px; font-size: 14px; }
 .gsentence code { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
 .gstrip-scroll { overflow-x: auto; padding-bottom: 4px; display: flex; flex-direction: column; gap: 3px; }
-/* When a strip is too wide, start scrolled to bit 0 — the low bits are where the action usually is. */
-.gstrip-scroll, .bits-scroll { direction: rtl; }
-.gstrip-scroll > *, .bits-scroll > * { direction: ltr; }
 .gstrip { display: flex; gap: 2px; width: max-content; }
 .gbit {
   --gc: clamp(15px, 1.1vw, 19px);
@@ -562,6 +559,22 @@ dialog h3 { font-size: 13px; margin: 14px 0 6px; color: var(--muted); text-trans
 .glegend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8px; }
 .glegend span { display: inline-flex; align-items: center; gap: 6px; }
 .glegend .gbit { --gc: 16px; }
+
+/* ───────────── ✓/✗ marks on before → after bits */
+.bit.mark-ok, .bit.mark-bad { position: relative; }
+.bit.mark-ok::after, .bit.mark-bad::after {
+  position: absolute; top: -5px; right: -4px;
+  width: 11px; height: 11px; border-radius: 50%;
+  display: grid; place-items: center;
+  font: 800 8px/1 var(--sans); color: #fff;
+}
+.bit.mark-ok::after { content: '✓'; background: var(--good); color: #04130c; }
+.bit.mark-bad::after { content: '✗'; background: var(--bad); }
+.bit.mark-bad { box-shadow: 0 0 0 2px var(--bad) !important; }
+.mark-sum { font: 600 11.5px var(--mono); padding: 1px 7px; border-radius: 99px; }
+.mark-sum-ok { color: var(--good); background: var(--good-bg); }
+.mark-sum-bad { color: var(--bad); background: var(--bad-bg); }
+.bits { padding-top: 4px; row-gap: 5px; }
 
 /* The `font` shorthands above reset ligatures, hence !important. They'd draw |= as ⊨ and -> as →,
    wrong glyphs for people learning C. */

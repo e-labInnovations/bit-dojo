@@ -2,7 +2,7 @@
 
 import { REG_BY_KEY } from '../core/chip';
 import type { BitGoal, LevelGoal, TargetGoal } from '../core/goal';
-import { decodePin } from './regview';
+import { decodePin, scrollToLowBits } from './regview';
 
 function el(tag: string, cls?: string, html?: string) {
   const e = document.createElement(tag);
@@ -141,6 +141,7 @@ function strip(width: number, cell: (i: number) => HTMLElement, under?: (p: numb
     }
     wrap.append(u);
   }
+  scrollToLowBits(wrap);
   return wrap;
 }
 
