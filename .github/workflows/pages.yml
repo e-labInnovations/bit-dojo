@@ -25,6 +25,8 @@ jobs:
       - run: npx -y pnpm@11 install --frozen-lockfile
       - run: npx -y pnpm@11 test
       - run: npx -y pnpm@11 build
+        env:
+          SITE_URL: https://bit-dojo.elabins.com/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

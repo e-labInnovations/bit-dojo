@@ -3,7 +3,7 @@ import { defineConfig, type Plugin } from 'vite';
 import { CHAPTERS, LEVELS } from './src/core/levels';
 
 // Public URL of the deployed site. Absolute URLs are needed for canonical, Open Graph and the sitemap.
-const SITE_URL = (process.env.SITE_URL ?? 'https://utils.elabins.com/bit-dojo/').replace(/\/?$/, '/');
+const SITE_URL = (process.env.SITE_URL ?? 'https://bit-dojo.elabins.com/').replace(/\/?$/, '/');
 
 const VERSION = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version as string;
 

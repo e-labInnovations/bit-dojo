@@ -1,0 +1,15 @@
+# bit-dojo
+
+> A free, browser-based game for learning the bitwise operations embedded C is built on. Players write real C register code (for example `GPIOC->CFGLR |= (GPIO_Speed_10MHz | GPIO_CNF_OUT_PP) << (4*1);`) against a simulated CH32V003 RISC-V microcontroller and see every bit change.
+
+bit-dojo has 24 levels in five chapters: bits and hex; set, clear, toggle and test; register fields; real CH32V003 registers (RCC clock enables, GPIO CFGLR, OUTDR, INDR, BSHR); and a bug hunt covering clobbering with `=`, operator precedence, missing clock enables and signed-shift undefined behaviour. An animated step-by-step visualizer shows how each C operator works in binary, and a sandbox exposes the whole simulated chip.
+
+## Links
+
+- [Play bit-dojo](https://bit-dojo.elabins.com/): the app itself
+- [Source code](https://github.com/e-labInnovations/bit-dojo): MIT-licensed TypeScript, with a C-subset interpreter and chip model
+- [e-lab innovations](https://elabins.com): the author's website
+
+## Optional
+
+- [ch32fun](https://github.com/cnlohr/ch32fun): the CH32V003 SDK whose register layouts and macro values bit-dojo follows

@@ -4,11 +4,11 @@
 
 <p align="center">
   Learn the bitwise tricks embedded C runs on by writing real register code for a simulated <b>CH32V003</b>.<br>
-  <a href="https://utils.elabins.com/bit-dojo/"><b>▶ Play it in your browser</b></a>
+  <a href="https://bit-dojo.elabins.com/"><b>▶ Play it in your browser</b></a>
 </p>
 
 <p align="center">
-  <a href="https://utils.elabins.com/bit-dojo/"><img alt="Live site" src="https://img.shields.io/badge/play-utils.elabins.com%2Fbit--dojo-3ddc97"></a>
+  <a href="https://bit-dojo.elabins.com/"><img alt="Live site" src="https://img.shields.io/badge/play-bit--dojo.elabins.com-3ddc97"></a>
   <a href="https://claude.com/claude-code"><img alt="Vibe-coded with Claude Code" src="https://img.shields.io/badge/vibe--coded%20with-Claude%20Code-D97757?logo=claude&logoColor=white"></a>
   <a href="LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-blue"></a>
 </p>
@@ -71,7 +71,7 @@ npx -y pnpm@11 test       # C semantics, the chip model, and every level's solut
 npx -y pnpm@11 build      # static site in dist/
 ```
 
-`dist/` is plain static files with relative paths, so any static host works. Pushing to `main` deploys to GitHub Pages through `.github/workflows/pages.yml`. The absolute URLs used for the canonical link, Open Graph and `sitemap.xml` come from `SITE_URL`, which defaults to `https://utils.elabins.com/bit-dojo/`. Override it with `SITE_URL=https://example.com/ npx -y pnpm@11 build`.
+`dist/` is plain static files with relative paths, so any static host works. Pushing to `main` deploys to GitHub Pages through `.github/workflows/pages.yml`. The absolute URLs used for the canonical link, Open Graph and `sitemap.xml` come from `SITE_URL`, which defaults to `https://bit-dojo.elabins.com/`. The custom domain is set by `public/CNAME`. Override it with `SITE_URL=https://example.com/ npx -y pnpm@11 build`.
 
 ## Layout
 
