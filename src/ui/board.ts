@@ -44,7 +44,7 @@ export function renderBoard(o: BoardOpts): HTMLElement {
       <text x="90" y="92" class="chip-sub">F4P6</text>
     </g>
     <!-- PC1 → resistor → LED → GND -->
-    <path d="M136 43 H170 V38 H250" class="trace trace-pc1"/>
+    <path d="M136 43 H170 V38 H262" class="trace trace-pc1"/>
     <text x="142" y="36" class="pin-label">PC1</text>
     <rect x="186" y="33" width="26" height="10" rx="2" class="resistor"/>
     <circle cx="272" cy="38" r="26" fill="url(#glow)" class="led-glow"/>
