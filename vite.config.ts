@@ -1,8 +1,11 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig, type Plugin } from 'vite';
 import { CHAPTERS, LEVELS } from './src/core/levels';
 
 // Public URL of the deployed site. Absolute URLs are needed for canonical, Open Graph and the sitemap.
 const SITE_URL = (process.env.SITE_URL ?? 'https://utils.elabins.com/bit-dojo/').replace(/\/?$/, '/');
+
+const VERSION = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version as string;
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const strip = (html: string) => html.replace(/<[^>]+>/g, '');
@@ -38,7 +41,7 @@ function seo(): Plugin {
   return {
     name: 'bit-dojo-seo',
     transformIndexHtml(html) {
-      return html.replaceAll('%SITE_URL%', SITE_URL).replace('<!--seo-content-->', seoContent());
+      return html.replaceAll('%SITE_URL%', SITE_URL).replaceAll('%APP_VERSION%', VERSION).replace('<!--seo-content-->', seoContent());
     },
     generateBundle() {
       const today = new Date().toISOString().slice(0, 10);

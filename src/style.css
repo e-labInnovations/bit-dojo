@@ -20,6 +20,8 @@
   --good-bg: #dff3e8;
   --ub: #a21caf;
   --accent: #1f5fd1;
+  --primary: #0b7a52; /* white text on it: 5.4:1 */
+  --on-primary: #ffffff;
   --pcb: #1e5a3c;
   --pcb-line: #d8b25a;
   --led: #ff3b30;
@@ -61,6 +63,8 @@
     --good-bg: #0f3326;
     --ub: #e879f9;
     --accent: #7aa2ff;
+    --primary: #3ddc97;
+    --on-primary: #04130c;
     --pcb: #123826;
     --pcb-line: #b8943e;
     --code-bg: #070a0e;
@@ -88,6 +92,8 @@
   --good-bg: #0f3326;
   --ub: #e879f9;
   --accent: #7aa2ff;
+  --primary: #3ddc97;
+  --on-primary: #04130c;
   --pcb: #123826;
   --pcb-line: #b8943e;
   --code-bg: #070a0e;
@@ -133,7 +139,7 @@ button { font: inherit; color: inherit; }
 .brand b { color: var(--one); }
 .brand-logo { display: block; border-radius: 7px; }
 .tagline { color: var(--muted); font-size: 13px; }
-.topnav { margin-left: auto; display: flex; gap: 4px; align-items: center; }
+.topnav { margin-left: auto; display: flex; gap: 4px; align-items: center; white-space: nowrap; }
 .topnav a, .topnav button {
   padding: 6px 12px; border-radius: 8px; border: 1px solid transparent;
   background: none; color: var(--text); cursor: pointer; font-size: 14px;
@@ -167,6 +173,12 @@ button { font: inherit; color: inherit; }
 }
 @media (max-width: 560px) {
   .top { padding: 8px 16px; gap: 8px; }
+  .brand-text { display: none; } /* the logo alone carries the brand on phones */
+}
+@media (max-width: 400px) {
+  .top { padding: 8px 10px; gap: 4px; }
+  .topnav { gap: 0; }
+  .topnav a, .topnav button { padding: 6px 7px; }
   .topnav a, .topnav button { padding: 6px 8px; font-size: 13px; }
 }
 
@@ -257,11 +269,22 @@ button { font: inherit; color: inherit; }
 }
 .btn:hover:not(:disabled) { border-color: var(--text); text-decoration: none; }
 .btn:disabled { opacity: 0.5; cursor: default; }
-.btn-run { background: var(--one); border-color: var(--one); color: #04130c; font-weight: 700; }
-.btn-run:hover:not(:disabled) { filter: brightness(1.08); border-color: var(--one); }
+.btn-run { background: var(--primary); border-color: var(--primary); color: var(--on-primary); font-weight: 700; }
+.btn-run:hover:not(:disabled) { filter: brightness(1.08); border-color: var(--primary); }
 .btn-ghost { background: none; }
 .btn-small { padding: 4px 10px; font-size: 13px; }
-.btn kbd { font-size: 11px; opacity: 0.75; font-weight: 600; }
+.kbd-group { display: inline-flex; gap: 3px; margin-left: 2px; }
+.kbd-group kbd {
+  display: inline-flex; align-items: center; justify-content: center; gap: 2px;
+  min-width: 20px; height: 20px; padding: 0 4px; border-radius: 5px;
+  font: 600 11px/1 var(--sans);
+  border: 1px solid color-mix(in srgb, currentColor 40%, transparent);
+  border-bottom-width: 2px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+.kbd-group svg { width: 12px; height: 12px; }
+/* No keyboard on touch-only devices, so no shortcut hint. */
+@media (hover: none) and (pointer: coarse) { .kbd-group { display: none; } }
 
 .code-error {
   margin-top: 8px; padding: 8px 12px; border-radius: 8px;
@@ -289,7 +312,7 @@ button { font: inherit; color: inherit; }
 }
 .case-tab[aria-selected='true'] { border-color: var(--text); font-weight: 600; }
 .case-mark { font: 700 11px var(--mono); width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--panel-2); border: 1px solid var(--line-2); }
-.case-tab.pass .case-mark { background: var(--good); color: #04130c; border-color: var(--good); }
+.case-tab.pass .case-mark { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
 .case-tab.fail .case-mark { background: var(--bad); color: #fff; border-color: var(--bad); }
 
 .case-detail { display: flex; flex-direction: column; gap: 12px; }
@@ -445,7 +468,7 @@ dialog h3 { font-size: 13px; margin: 14px 0 6px; color: var(--muted); text-trans
 .xchip b { font: 700 11px var(--mono); width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--panel-2); border: 1px solid var(--line-2); flex: none; }
 .xchip code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .xchip.on { border-color: var(--text); }
-.xchip.on b { background: var(--one); color: #04130c; border-color: var(--one); }
+.xchip.on b { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
 .xchip-write b { border-style: dashed; }
 .xstage { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; min-width: 0; }
 .xhead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 6px; }
@@ -575,13 +598,30 @@ dialog h3 { font-size: 13px; margin: 14px 0 6px; color: var(--muted); text-trans
   display: grid; place-items: center;
   font: 800 8px/1 var(--sans); color: #fff;
 }
-.bit.mark-ok::after { content: '✓'; background: var(--good); color: #04130c; }
+.bit.mark-ok::after { content: '✓'; background: var(--primary); color: var(--on-primary); }
 .bit.mark-bad::after { content: '✗'; background: var(--bad); }
 .bit.mark-bad { box-shadow: 0 0 0 2px var(--bad) !important; }
 .mark-sum { font: 600 11.5px var(--mono); padding: 1px 7px; border-radius: 99px; }
 .mark-sum-ok { color: var(--good); background: var(--good-bg); }
 .mark-sum-bad { color: var(--bad); background: var(--bad-bg); }
 .bits { padding-top: 4px; row-gap: 5px; }
+
+/* ───────────── about dialog */
+dialog.about { width: min(560px, calc(100vw - 32px)); }
+.about-hero { display: flex; gap: 16px; align-items: center; margin-top: 16px; }
+.about-hero img { border-radius: 14px; flex: none; }
+.about-hero p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.about-name { font: 700 22px var(--mono); }
+.about-name b { color: var(--one); }
+.about-ver { font: 500 12px var(--mono); color: var(--muted); border: 1px solid var(--line-2); border-radius: 99px; padding: 1px 8px; vertical-align: middle; }
+.about-links { list-style: none; margin: 18px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.about-links a { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; color: var(--text); background: var(--panel-2); }
+.about-links a:hover { border-color: var(--text); text-decoration: none; }
+.about-links svg { width: 20px; height: 20px; flex: none; }
+.about-links span { display: flex; flex-direction: column; min-width: 0; }
+.about-links small { color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; }
+.about-note { margin: 16px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--up-bg); font-size: 14px; }
+.about-small { margin: 12px 0 0; color: var(--muted); font-size: 12.5px; }
 
 /* The `font` shorthands above reset ligatures, hence !important. They'd draw |= as ⊨ and -> as →,
    wrong glyphs for people learning C. */

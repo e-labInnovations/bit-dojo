@@ -67,6 +67,34 @@ $('#cheatsheet-body').innerHTML = CHEATSHEET;
 $('#cheat').addEventListener('click', () => dialog.showModal());
 $('#cheatsheet-close').addEventListener('click', () => dialog.close());
 dialog.addEventListener('click', (e) => e.target === dialog && dialog.close());
+const about = $<HTMLDialogElement>('#about-dialog');
+$('#about').addEventListener('click', () => about.showModal());
+about.querySelector('[data-close]')!.addEventListener('click', () => about.close());
+about.addEventListener('click', (e) => e.target === about && about.close());
+
+// ───────────── Run button with an OS-aware ⌘/Ctrl + Enter hint
+// Icons are Lucide's "command" and "corner-down-left" (ISC licence), inlined.
+const IS_MAC = /mac|iphone|ipad/i.test(
+  (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform || navigator.userAgent,
+);
+const LUCIDE = (paths: string) =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+const ICON_COMMAND = LUCIDE('<path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/>');
+const ICON_ENTER = LUCIDE('<polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/>');
+
+function runButton(onClick: () => void) {
+  const keys = h('span', { class: 'kbd-group', 'aria-hidden': 'true' },
+    h('kbd', { html: IS_MAC ? ICON_COMMAND : 'Ctrl' }),
+    h('kbd', { html: IS_MAC ? ICON_ENTER : `Enter` }),
+  );
+  const btn = h('button', {
+    class: 'btn btn-run',
+    'aria-keyshortcuts': IS_MAC ? 'Meta+Enter' : 'Control+Enter',
+    title: IS_MAC ? 'Run (⌘ Return)' : 'Run (Ctrl + Enter)',
+  }, 'Run', keys);
+  btn.addEventListener('click', onClick);
+  return btn;
+}
 
 // ───────────── routing
 function route() {
@@ -134,9 +162,8 @@ function showLevel(level: Level) {
   const hintBtn = h('button', { class: 'btn' }, 'Hint');
   const solBtn = h('button', { class: 'btn btn-ghost' }, 'Show solution');
   const resetBtn = h('button', { class: 'btn btn-ghost', title: 'Restore the starting code' }, 'Reset code');
-  const runBtn = h('button', { class: 'btn btn-run' }, 'Run ', h('kbd', {}, navigator.platform.includes('Mac') ? '⌘↵' : 'Ctrl↵'));
+  const runBtn = runButton(run);
 
-  runBtn.addEventListener('click', run);
   hintBtn.addEventListener('click', () => {
     hintsShown = Math.min(hintsShown + 1, level.hints.length);
     paintHints();
@@ -431,8 +458,7 @@ function showSandbox() {
     paint();
     doEval();
   });
-  const runBtn = h('button', { class: 'btn btn-run' }, 'Run ', h('kbd', {}, navigator.platform.includes('Mac') ? '⌘↵' : 'Ctrl↵'));
-  runBtn.addEventListener('click', run);
+  const runBtn = runButton(run);
 
   const left = h(
     'section',
