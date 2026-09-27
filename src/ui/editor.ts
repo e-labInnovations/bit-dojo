@@ -85,6 +85,8 @@ export function createEditor(opts: { onChange: (v: string) => void; onRun: () =>
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       opts.onRun();
+    } else if (e.key === 'Escape') {
+      ta.blur(); // lets the page-level [ / ] shortcuts work
     } else if (e.key === 'Tab' && !e.shiftKey) {
       e.preventDefault();
       ta.setRangeText('    ', ta.selectionStart, ta.selectionEnd, 'end');

@@ -82,11 +82,11 @@ const LUCIDE = (paths: string) =>
 const ICON_COMMAND = LUCIDE('<path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/>');
 const ICON_ENTER = LUCIDE('<polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/>');
 
+// Decorative keycaps (hidden from screen readers; the control carries aria-keyshortcuts).
+const keycaps = (...keys: string[]) => h('span', { class: 'kbd-group', 'aria-hidden': 'true' }, ...keys.map((k) => h('kbd', { html: k })));
+
 function runButton(onClick: () => void) {
-  const keys = h('span', { class: 'kbd-group', 'aria-hidden': 'true' },
-    h('kbd', { html: IS_MAC ? ICON_COMMAND : 'Ctrl' }),
-    h('kbd', { html: IS_MAC ? ICON_ENTER : `Enter` }),
-  );
+  const keys = keycaps(IS_MAC ? ICON_COMMAND : 'Ctrl', IS_MAC ? ICON_ENTER : 'Enter');
   const btn = h('button', {
     class: 'btn btn-run',
     'aria-keyshortcuts': IS_MAC ? 'Meta+Enter' : 'Control+Enter',
@@ -95,6 +95,19 @@ function runButton(onClick: () => void) {
   btn.addEventListener('click', onClick);
   return btn;
 }
+
+// ───────────── level navigation keys: [ previous, ] next
+// Ignored while typing in a field or with a dialog open. Esc in the editor blurs it.
+let levelNav: { prev?: string; next?: string } | null = null;
+document.addEventListener('keydown', (e) => {
+  if (!levelNav || e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return;
+  const t = e.target as HTMLElement;
+  if (t.closest('input, textarea, select, [contenteditable]') || document.querySelector('dialog[open]')) return;
+  const id = e.key === ']' ? levelNav.next : e.key === '[' ? levelNav.prev : undefined;
+  if (!id) return;
+  e.preventDefault();
+  location.hash = `#/level/${id}`;
+});
 
 // ───────────── routing
 function route() {
@@ -141,6 +154,7 @@ function showLevel(level: Level) {
   const idx = LEVELS.indexOf(level);
   const goal = deriveGoal(level);
   document.title = `${level.title} · Level ${idx + 1} · bit-dojo`;
+  levelNav = { prev: LEVELS[idx - 1]?.id, next: LEVELS[idx + 1]?.id };
   let results: CaseResult[] | null = null;
   let selected = 0;
   let hintsShown = 0;
@@ -219,6 +233,8 @@ function showLevel(level: Level) {
       $('.side', app).replaceWith(sidebar(level));
     }
     paintResults();
+    // Solved: put focus on "Next level" so Enter moves on.
+    if (results.every((r) => r.pass)) resultCol.querySelector<HTMLElement>('.summary .btn-run')?.focus();
   }
 
   // Per-bit ✓/✗ against this case's exact expected value. Bits the level requires get a
@@ -251,7 +267,7 @@ function showLevel(level: Level) {
     const summary = !results
       ? h('div', { class: 'summary summary-idle' }, h('b', {}, `${list.length} test case${list.length > 1 ? 's' : ''}`), level.kind === 'program' && list.length > 1 ? ' — some start from random values, so your code has to work for all of them.' : ' — run your code to check it.')
       : allPass
-        ? h('div', { class: 'summary summary-pass' }, h('b', {}, 'Solved! '), `All ${list.length} cases pass.`, idx < LEVELS.length - 1 ? h('a', { class: 'btn btn-run', href: `#/level/${LEVELS[idx + 1].id}` }, 'Next level →') : h('span', {}, ' That was the last one — try the Sandbox.'))
+        ? h('div', { class: 'summary summary-pass' }, h('b', {}, 'Solved! '), `All ${list.length} cases pass.`, idx < LEVELS.length - 1 ? h('a', { class: 'btn btn-run', href: `#/level/${LEVELS[idx + 1].id}`, 'aria-keyshortcuts': 'Enter ]', title: 'Next level (Enter, or ])' }, 'Next level →', keycaps(ICON_ENTER)) : h('span', {}, ' That was the last one — try the Sandbox.'))
         : h('div', { class: 'summary summary-fail' }, h('b', {}, `${passed} of ${list.length} pass.`), ' Pick a red case to see what went wrong.');
 
     const tabs = h('div', { class: 'case-tabs', role: 'tablist' });
@@ -313,8 +329,8 @@ function showLevel(level: Level) {
     h(
       'nav',
       { class: 'pager' },
-      idx > 0 ? h('a', { href: `#/level/${LEVELS[idx - 1].id}` }, '← ' + LEVELS[idx - 1].title) : h('span'),
-      idx < LEVELS.length - 1 ? h('a', { href: `#/level/${LEVELS[idx + 1].id}` }, LEVELS[idx + 1].title + ' →') : h('span'),
+      idx > 0 ? h('a', { href: `#/level/${LEVELS[idx - 1].id}`, 'aria-keyshortcuts': '[', title: 'Previous level ([)' }, keycaps('['), '← ' + LEVELS[idx - 1].title) : h('span'),
+      idx < LEVELS.length - 1 ? h('a', { href: `#/level/${LEVELS[idx + 1].id}`, 'aria-keyshortcuts': ']', title: 'Next level (])' }, LEVELS[idx + 1].title + ' →', keycaps(']')) : h('span'),
     ),
   );
 
@@ -336,6 +352,7 @@ sb.prev = snapshot(new Chip(sb.state));
 
 function showSandbox() {
   document.title = 'Sandbox · bit-dojo — simulated CH32V003';
+  levelNav = null;
   const editor = createEditor({
     onChange: (v) => store.set('sandbox', v),
     onRun: run,

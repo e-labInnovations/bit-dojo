@@ -295,6 +295,8 @@ button { font: inherit; color: inherit; }
 .solution-box { padding: 10px 12px; border: 1px dashed var(--line-2); border-radius: 8px; }
 .solution { margin: 6px 0 8px; padding: 10px 12px; background: var(--code-bg); color: var(--code-text); border-radius: 6px; overflow-x: auto; }
 .pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 24px; font-size: 14px; }
+.pager a { display: inline-flex; align-items: center; gap: 6px; }
+.pager .kbd-group { margin: 0; }
 
 /* ───────────── results column */
 .summary { padding: 12px 14px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
@@ -443,6 +445,7 @@ dialog h3 { font-size: 13px; margin: 14px 0 6px; color: var(--muted); text-trans
 .cs { border-collapse: collapse; width: 100%; font-size: 14px; }
 .cs th, .cs td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .cs th { white-space: nowrap; font-weight: 600; width: 1%; }
+.cs kbd { font: 600 12px var(--sans); padding: 1px 6px; border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: 5px; background: var(--panel-2); }
 .cs-small td { padding: 3px 8px; font-size: 13px; }
 .cs-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 @media (max-width: 640px) {

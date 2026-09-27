@@ -39,6 +39,15 @@ export const CHEATSHEET = `
   </div>
 </div>
 
+<h2>Keyboard shortcuts</h2>
+<table class="cs">
+  <tr><th><kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Enter</kbd></th><td>Run your code</td></tr>
+  <tr><th><kbd>Enter</kbd> after solving</th><td>Go to the next level (focus jumps to <b>Next level</b>)</td></tr>
+  <tr><th><kbd>[</kbd> / <kbd>]</kbd></th><td>Previous / next level (outside the editor)</td></tr>
+  <tr><th><kbd>Esc</kbd></th><td>Leave the editor</td></tr>
+  <tr><th><kbd>Enter</kbd> in Evaluate</th><td>Animate the expression step by step</td></tr>
+</table>
+
 <h2>Precedence (tightest first)</h2>
 <ol class="prec">
   <li><code>~ ! -</code> <code>(cast)</code></li>
