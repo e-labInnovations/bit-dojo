@@ -1,6 +1,8 @@
 import './style.css';
 import { Chip, ChipState, REGS, cloneState, resetState, snapshot } from './core/chip';
-import { Var, runExpression, runProgram } from './core/interp';
+import { Var, runExpression } from './core/interp';
+import { CodeError } from './core/lexer';
+import { LiveRun } from './core/live';
 import { CHAPTERS, LEVELS, Level } from './core/levels';
 import { CaseResult, buildState, rng, runLevel } from './core/runner';
 import { renderBoard } from './ui/board';
@@ -342,26 +344,101 @@ function showLevel(level: Level) {
 }
 
 // ───────────── sandbox
-const sb: { state: ChipState; prev: Record<string, number>; vars: Record<string, Var>; prevVars: Record<string, number> } = {
+const SETUP_PC1 = `RCC->APB2PCENR |= RCC_APB2Periph_GPIOC | RCC_APB2Periph_GPIOD;
+
+// PC1: 10 MHz push-pull output (the LED)
+GPIOC->CFGLR &= ~(0xf << (4*1));
+GPIOC->CFGLR |= (GPIO_Speed_10MHz | GPIO_CNF_OUT_PP) << (4*1);`;
+const SETUP_PD2 = `// PD2: input with pull-up (the button pulls it to GND)
+GPIOD->CFGLR &= ~(0xf << (4*2));
+GPIOD->CFGLR |= GPIO_CNF_IN_PUPD << (4*2);
+GPIOD->BSHR = (1 << 2);`;
+
+const EXAMPLES: { name: string; code: string }[] = [
+  {
+    name: 'Button toggles the LED',
+    code: `// Press Run, then click the button on the board: each press flips the LED.
+${SETUP_PC1}
+
+${SETUP_PD2}
+
+int last = 1;                          // 1 = released
+while (1) {
+    int now = (GPIOD->INDR >> 2) & 1;  // pressed reads 0
+    if (last == 1 && now == 0) {       // falling edge = a new press
+        GPIOC->OUTDR ^= (1 << 1);      // toggle the LED
+    }
+    last = now;
+    Delay_Ms(10);
+}
+`,
+  },
+  {
+    name: 'Blink',
+    code: `// Blink the LED on PC1 twice a second. Press Stop to end it.
+${SETUP_PC1}
+
+while (1) {
+    GPIOC->BSHR = (1 << 1);          // LED on
+    Delay_Ms(250);
+    GPIOC->BSHR = (1 << (16 + 1));   // LED off
+    Delay_Ms(250);
+}
+`,
+  },
+  {
+    name: 'LED on while the button is held',
+    code: `// The LED follows the button: on while it's held down.
+${SETUP_PC1}
+
+${SETUP_PD2}
+
+while (1) {
+    if (GPIOD->INDR & (1 << 2))          // released: the pull-up reads 1
+        GPIOC->BSHR = (1 << (16 + 1));   // LED off
+    else                                 // pressed: the button pulls PD2 to 0
+        GPIOC->BSHR = (1 << 1);          // LED on
+    Delay_Ms(5);
+}
+`,
+  },
+  {
+    name: 'Run once (no loop)',
+    code: `// No loop: this runs once and stops. The step-through below shows every operation.
+${SETUP_PC1}
+
+GPIOC->BSHR = (1 << 1);
+`,
+  },
+];
+
+const sb: { state: ChipState; prev: Record<string, number>; vars: Record<string, Var>; prevVars: Record<string, number>; live: LiveRun | null } = {
   state: resetState(),
   prev: {},
   vars: {},
   prevVars: {},
+  live: null,
 };
 sb.prev = snapshot(new Chip(sb.state));
+
+// Leaving the sandbox stops a running program.
+window.addEventListener('hashchange', () => {
+  if (!location.hash.startsWith('#/sandbox')) sb.live?.stop();
+});
 
 function showSandbox() {
   document.title = 'Sandbox · bit-dojo — simulated CH32V003';
   levelNav = null;
   const editor = createEditor({
     onChange: (v) => store.set('sandbox', v),
-    onRun: run,
-    rows: 8,
-    placeholder: 'Any statements. State carries over between runs.',
+    onRun: () => run(true),
+    rows: 12,
+    placeholder: 'Setup code, then while (1) { ... } to keep it running.',
   });
-  editor.set(store.get('sandbox', '// Anything goes. State persists between runs.\nRCC->APB2PCENR |= RCC_APB2Periph_GPIOC | RCC_APB2Periph_GPIOD;\n\nGPIOC->CFGLR &= ~(0xf << (4*1));\nGPIOC->CFGLR |= (GPIO_Speed_10MHz | GPIO_CNF_OUT_PP) << (4*1);\n\nGPIOC->BSHR = (1 << 1);\n'));
+  editor.set(store.get('sandbox', EXAMPLES[0].code));
 
   const errBox = h('div', { class: 'code-error', hidden: '' });
+  const status = h('div', { class: 'run-status', hidden: '', role: 'status' });
   const notesBox = h('div');
   const boardBox = h('div');
   const regsBox = h('section', { class: 'col-result sandbox-regs' });
@@ -371,34 +448,93 @@ function showSandbox() {
   const evalExplain = h('div', { class: 'eval-explain' });
   const runExplain = h('details', { class: 'explain-box', hidden: '' }) as HTMLDetailsElement;
 
+  const examples = h('select', { class: 'examples', 'aria-label': 'Load an example' }, h('option', { value: '' }, 'Examples…'), ...EXAMPLES.map((e, i) => h('option', { value: String(i) }, e.name))) as HTMLSelectElement;
+  examples.addEventListener('change', () => {
+    const ex = EXAMPLES[Number(examples.value)];
+    examples.value = '';
+    if (!ex) return;
+    const cur = editor.get().trim();
+    if (cur && !EXAMPLES.some((e) => e.code.trim() === cur) && !confirm('Replace your code with this example?')) return;
+    sb.live?.stop();
+    editor.set(ex.code);
+    store.set('sandbox', ex.code);
+  });
+
   function chip() {
     return new Chip(sb.state);
   }
 
-  function run() {
+  const runBtn = runButton(() => (sb.live?.running ? sb.live.stop() : run(false)));
+  const setRunning = (on: boolean) => {
+    runBtn.firstChild!.textContent = on ? 'Stop' : 'Run';
+    runBtn.classList.toggle('btn-stop', on);
+  };
+
+  function showNotes(list: { level: string; msg: string }[]) {
+    notesBox.replaceChildren(list.length ? h('ul', { class: 'notes' }, ...list.map((n) => h('li', { class: 'note-' + n.level }, n.msg))) : '');
+  }
+
+  function showStatus(kind: 'running' | 'done' | 'stopped' | 'error', lr: LiveRun) {
+    status.hidden = !lr.live && kind === 'done';
+    const secs = (lr.delayMs / 1000).toFixed(lr.delayMs < 10000 ? 2 : 1);
+    const stats = `${lr.passes.toLocaleString('en')} loop pass${lr.passes === 1 ? '' : 'es'} · ${secs} s in Delay_Ms`;
+    const head = { running: 'Running', done: '✓ Finished', stopped: '■ Stopped', error: '✗ Stopped by an error' }[kind];
+    status.className = `run-status run-${kind}`;
+    status.replaceChildren(h('b', {}, kind === 'running' ? h('span', { class: 'live-dot', 'aria-hidden': 'true' }) : '', head), ` · ${stats}`, kind === 'running' ? h('span', { class: 'muted' }, ' — click the button on the board') : '');
+  }
+
+  // restart = Cmd/Ctrl+Enter: always (re)start with the current code.
+  function run(restart: boolean) {
+    if (sb.live?.running) {
+      sb.live.stop();
+      if (!restart) return;
+    }
     sb.prev = snapshot(chip());
     sb.prevVars = Object.fromEntries(Object.entries(sb.vars).map(([k, v]) => [k, v.value]));
     const c = chip();
-    const res = runProgram(editor.get(), c, {});
-    // Declarations are local to one run; redeclaring across runs would be an error otherwise.
-    if (res.ok) {
-      sb.state = c.state;
-      sb.vars = Object.fromEntries(res.interp.vars);
-      errBox.hidden = true;
-      editor.setError(null);
-    } else {
-      const { line, col } = lineCol(editor.get(), res.error!.pos);
+    sb.state = c.state; // share the state object: button presses and bit pokes reach the running code
+    let lr: LiveRun;
+    try {
+      lr = new LiveRun(editor.get(), c, {
+        onFrame: () => {
+          sb.vars = Object.fromEntries(lr.interp.vars);
+          showNotes(lr.interp.allNotes());
+          showStatus('running', lr);
+          paint();
+        },
+        onEnd: (why, error) => {
+          setRunning(false);
+          sb.vars = Object.fromEntries(lr.interp.vars);
+          showNotes(lr.interp.allNotes());
+          showStatus(why, lr);
+          if (error) {
+            const { line, col } = lineCol(editor.get(), error.pos);
+            errBox.hidden = false;
+            errBox.replaceChildren(h('b', {}, `Line ${line}, col ${col}: `), error.message);
+            editor.setError(error.pos);
+          }
+          const steps = lr.interp.trace;
+          runExplain.hidden = lr.live || !steps.length;
+          if (!runExplain.hidden) runExplain.replaceChildren(h('summary', {}, `Step through this run · ${steps.length} step${steps.length === 1 ? '' : 's'}`), renderExplain(steps, { autoplay: runExplain.open }));
+          paint();
+          doEval();
+        },
+      });
+    } catch (e) {
+      if (!(e instanceof CodeError)) throw e;
+      const { line, col } = lineCol(editor.get(), e.pos);
       errBox.hidden = false;
-      errBox.replaceChildren(h('b', {}, `Line ${line}, col ${col}: `), res.error!.message, h('div', { class: 'muted' }, 'Nothing was applied.'));
-      editor.setError(res.error!.pos);
+      errBox.replaceChildren(h('b', {}, `Line ${line}, col ${col}: `), e.message, h('div', { class: 'muted' }, 'Nothing was run.'));
+      editor.setError(e.pos);
+      return;
     }
-    const notes = res.interp.allNotes();
-    notesBox.replaceChildren(notes.length ? h('ul', { class: 'notes' }, ...notes.map((n) => h('li', { class: 'note-' + n.level }, n.msg))) : '');
-    const steps = res.interp.trace;
-    runExplain.hidden = !steps.length;
-    runExplain.replaceChildren(h('summary', {}, `Step through this run · ${steps.length} step${steps.length === 1 ? '' : 's'}`), renderExplain(steps, { autoplay: runExplain.open }));
-    paint();
-    doEval();
+    errBox.hidden = true;
+    editor.setError(null);
+    runExplain.hidden = true;
+    sb.live = lr;
+    setRunning(true);
+    lr.start();
+    if (lr.running) showStatus('running', lr);
   }
 
   function doEval(autoplay = false) {
@@ -432,6 +568,7 @@ function showSandbox() {
         interactive: true,
         onPress: (down) => {
           sb.state.external.PD2 = down ? 'low' : 'float';
+          if (sb.live?.running) return sb.live.refresh();
           sb.prev = now;
           paint();
           doEval();
@@ -467,27 +604,28 @@ function showSandbox() {
 
   const resetBtn = h('button', { class: 'btn btn-ghost' }, 'Reset chip');
   resetBtn.addEventListener('click', () => {
+    sb.live?.stop();
     sb.state = resetState();
     sb.vars = {};
     sb.prev = snapshot(chip());
     sb.prevVars = {};
     notesBox.replaceChildren();
+    status.hidden = true;
     paint();
     doEval();
   });
-  const runBtn = runButton(run);
 
   const left = h(
     'section',
     { class: 'col-task' },
     h('div', { class: 'crumb' }, 'Free play'),
     h('h1', {}, 'Sandbox'),
-    h('p', { class: 'goal' }, 'A whole simulated CH32V003. Write anything, run it, poke bits, press the button.'),
-    h('div', { class: 'editor-box' }, h('div', { class: 'editor-label' }, 'Code'), editor.el, errBox, h('div', { class: 'toolbar' }, runBtn, resetBtn)),
+    h('p', { class: 'goal', html: 'A whole simulated CH32V003. Put setup code first, then <code>while (1) { … }</code>: it keeps running, so the board button really works. <code>Delay_Ms()</code> really waits.' }),
+    h('div', { class: 'editor-box' }, h('div', { class: 'editor-head' }, h('div', { class: 'editor-label' }, 'Code'), examples), editor.el, errBox, h('div', { class: 'toolbar' }, runBtn, resetBtn), status),
+    boardBox,
     notesBox,
     runExplain,
     h('div', { class: 'editor-box' }, h('div', { class: 'editor-label' }, 'Evaluate'), evalIn, evalOut, evalExplain),
-    boardBox,
   );
   app.replaceChildren(h('div', { class: 'layout layout-sandbox' }, h('main', { class: 'level' }, left, regsBox)));
   paint();

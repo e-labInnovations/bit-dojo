@@ -22,7 +22,12 @@ export type Stmt =
   | { k: 'if'; test: Expr; then: Stmt; else?: Stmt; pos: number }
   | { k: 'block'; body: Stmt[]; pos: number }
   | { k: 'call'; name: string; args: Expr[]; pos: number }
-  | { k: 'expr'; expr: Expr; pos: number };
+  | { k: 'expr'; expr: Expr; pos: number }
+  | { k: 'while'; test: Expr; body: Stmt; pos: number }
+  | { k: 'do'; body: Stmt; test: Expr; pos: number }
+  | { k: 'for'; init?: Stmt; test?: Expr; update?: Stmt; body: Stmt; pos: number }
+  | { k: 'break' | 'continue'; pos: number }
+  | { k: 'return'; pos: number };
 
 const TYPE_WORDS = new Set(['int', 'unsigned', 'signed', 'uint8_t', 'uint16_t', 'uint32_t', 'int8_t', 'int16_t', 'int32_t', 'volatile', 'const']);
 
@@ -68,6 +73,15 @@ class Parser {
   }
 
   program(): Stmt[] {
+    // Lesson code is wrapped in `int main(void) { ... }` — accept it and run the body.
+    if (this.peek().kind === 'ident' && ['int', 'void'].includes(this.peek().text) && this.is('main', 1) && this.is('(', 2)) {
+      this.i += 3;
+      if (this.is('void')) this.next();
+      this.expect(')');
+      const body = this.statement();
+      if (this.peek().kind !== 'eof') throw new CodeError('Nothing may follow main()', this.peek().pos);
+      return body.k === 'block' ? body.body : [body];
+    }
     const out: Stmt[] = [];
     while (this.peek().kind !== 'eof') out.push(this.statement());
     return out;
@@ -111,10 +125,55 @@ class Parser {
       }
       return { k: 'if', test, then, else: els, pos: t.pos };
     }
-    if (this.is('while') || this.is('for') || this.is('do')) {
-      throw new CodeError(`Loops aren't simulated here — write the statements that run once`, t.pos);
+    if (this.is('while')) {
+      this.next();
+      this.expect('(');
+      const test = this.expr();
+      this.expect(')');
+      return { k: 'while', test, body: this.statement(), pos: t.pos };
     }
-    if (t.kind === 'ident' && TYPE_WORDS.has(t.text)) return this.declaration();
+    if (this.is('do')) {
+      this.next();
+      const body = this.statement();
+      this.expect('while', 'a do { ... } needs while (condition); after it');
+      this.expect('(');
+      const test = this.expr();
+      this.expect(')');
+      this.expect(';', 'do ... while (...) ends with a semicolon');
+      return { k: 'do', body, test, pos: t.pos };
+    }
+    if (this.is('for')) {
+      this.next();
+      this.expect('(');
+      const init = this.is(';') ? undefined : this.simple(false);
+      this.expect(';', 'for (init; condition; step)');
+      const test = this.is(';') ? undefined : this.expr();
+      this.expect(';', 'for (init; condition; step)');
+      const update = this.is(')') ? undefined : this.simple(false);
+      this.expect(')');
+      return { k: 'for', init, test, update, body: this.statement(), pos: t.pos };
+    }
+    if (this.is('break') || this.is('continue')) {
+      const k = this.next().text as 'break' | 'continue';
+      this.expect(';', 'every C statement ends with a semicolon');
+      return { k, pos: t.pos };
+    }
+    if (this.is('return')) {
+      this.next();
+      if (!this.is(';')) this.expr(); // the value is ignored
+      this.expect(';', 'every C statement ends with a semicolon');
+      return { k: 'return', pos: t.pos };
+    }
+    return this.simple(true);
+  }
+
+  // Declaration, call, assignment, ++/-- or bare expression. `semi` is false inside for (...).
+  private simple(semi: boolean): Stmt {
+    const t = this.peek();
+    const end = () => {
+      if (semi) this.expect(';', 'every C statement ends with a semicolon');
+    };
+    if (t.kind === 'ident' && TYPE_WORDS.has(t.text)) return this.declaration(semi);
 
     if (t.kind === 'ident' && this.is('(', 1)) {
       const name = this.next().text;
@@ -125,7 +184,7 @@ class Parser {
         while (this.is(',') && this.next());
       }
       this.expect(')');
-      this.expect(';', 'every C statement ends with a semicolon');
+      end();
       if (!KNOWN_CALLS.has(name)) throw new CodeError(`Unknown function '${name}' — this dojo is about raw registers, no helpers`, t.pos);
       return { k: 'call', name, args, pos: t.pos };
     }
@@ -133,20 +192,20 @@ class Parser {
     const lhs = this.unary();
     if (this.is('++') || this.is('--')) {
       const op = this.next().text;
-      this.expect(';', 'every C statement ends with a semicolon');
+      end();
       return { k: 'assign', target: this.lvalue(lhs), op: op === '++' ? '+=' : '-=', value: { k: 'num', value: 1, unsigned: false, text: '1', pos: t.pos }, pos: t.pos };
     }
     const opTok = this.peek();
     if (opTok.kind === 'punct' && ASSIGN_OPS.has(opTok.text)) {
       this.next();
       const value = this.expr();
-      this.expect(';', 'every C statement ends with a semicolon');
+      end();
       return { k: 'assign', target: this.lvalue(lhs), op: opTok.text, value, pos: t.pos };
     }
     // Not an assignment: re-parse as a full expression statement (has no effect in C).
     this.i = this.toks.indexOf(t);
     const expr = this.expr();
-    this.expect(';', 'every C statement ends with a semicolon');
+    end();
     return { k: 'expr', expr, pos: t.pos };
   }
 
@@ -172,7 +231,7 @@ class Parser {
     return ty;
   }
 
-  private declaration(): Stmt {
+  private declaration(semi = true): Stmt {
     const pos = this.peek().pos;
     const type = this.typeName();
     const nameTok = this.next();
@@ -182,7 +241,7 @@ class Parser {
       this.next();
       init = this.expr();
     }
-    this.expect(';', 'every C statement ends with a semicolon');
+    if (semi) this.expect(';', 'every C statement ends with a semicolon');
     return { k: 'decl', type, name: nameTok.text, init, pos };
   }
 

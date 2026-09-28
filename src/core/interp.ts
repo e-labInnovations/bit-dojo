@@ -47,10 +47,24 @@ function narrow(type: CType, v: number): Val {
   }
 }
 
+// Where execution can pause: a Delay_*() call, or the end of one loop pass.
+export type Pause = { k: 'delay'; ms: number } | { k: 'tick' };
+
+// break / continue / return travel up the generator stack as exceptions.
+class Flow {
+  constructor(
+    public k: 'break' | 'continue' | 'return',
+    public pos: number,
+  ) {}
+}
+
 export class Interp {
-  vars = new Map<string, Var>();
+  vars = new Map<string, Var>(); // globals: the outermost scope
   notes: Note[] = [];
   trace: Step[] = [];
+  tracing = true; // off for live loops, whose trace would grow forever
+  maxSteps = 100_000; // run-once safety net; Infinity for live loops
+  private scopes: Map<string, Var>[] = []; // block scopes, innermost last
   private noteSeen = new Set<string>();
   private steps = 0;
   private stepOf = new WeakMap<Expr, number>();
@@ -72,6 +86,18 @@ export class Interp {
     return [...this.notes, ...this.chip.notes];
   }
 
+  private lookup(name: string): Var | undefined {
+    for (let i = this.scopes.length - 1; i >= 0; i--) {
+      const v = this.scopes[i].get(name);
+      if (v) return v;
+    }
+    return this.vars.get(name);
+  }
+
+  private get scope(): Map<string, Var> {
+    return this.scopes[this.scopes.length - 1] ?? this.vars;
+  }
+
   // Notes raised since a mark() — attached to the step that caused them.
   private mark() {
     return { n: this.notes.length, c: this.chip.notes.length };
@@ -84,39 +110,112 @@ export class Interp {
     const text = printExpr(e);
     if (e.k === 'num') return { text, val, from: 'literal' };
     if (e.k === 'member') return { text, val, from: 'reg' };
-    if (e.k === 'ident') return { text, val, from: this.vars.has(e.name) ? 'var' : 'macro' };
+    if (e.k === 'ident') return { text, val, from: this.lookup(e.name) ? 'var' : 'macro' };
     return { text, val, from: 'step', step: this.stepOf.get(e) };
   }
 
   private record(e: Expr | null, step: Step) {
+    if (!this.tracing) return;
     this.trace.push(step);
     if (e) this.stepOf.set(e, this.trace.length - 1);
   }
 
+  // Run to completion, ignoring pauses (levels, and the sandbox's first slice).
   run(stmts: Stmt[]) {
-    for (const s of stmts) this.stmt(s);
+    for (const _ of this.exec(stmts)) {
+      /* pauses don't matter when running straight through */
+    }
   }
 
-  private stmt(s: Stmt) {
-    if (++this.steps > 10000) throw new CodeError('Too many steps', s.pos);
+  // Step-able execution: yields at every Delay_*() and at the end of every loop pass.
+  *exec(stmts: Stmt[]): Generator<Pause, void, void> {
+    try {
+      for (const s of stmts) yield* this.stmt(s);
+    } catch (e) {
+      if (e instanceof Flow) {
+        if (e.k === 'return') return;
+        throw new CodeError(`'${e.k}' can only be used inside a loop`, e.pos);
+      }
+      throw e;
+    }
+  }
+
+  // One loop pass. Returns true if the body hit `break`.
+  private *pass(body: Stmt): Generator<Pause, boolean, void> {
+    try {
+      yield* this.stmt(body);
+    } catch (e) {
+      if (e instanceof Flow && e.k === 'break') return true;
+      if (e instanceof Flow && e.k === 'continue') return false;
+      throw e;
+    }
+    return false;
+  }
+
+  private *stmt(s: Stmt): Generator<Pause, void, void> {
+    if (++this.steps > this.maxSteps) {
+      throw new CodeError(`Stopped after ${this.maxSteps.toLocaleString('en')} steps — is there a loop that never ends? Loops run live only in the Sandbox.`, s.pos);
+    }
     switch (s.k) {
-      case 'block': return this.run(s.body);
-      case 'call': return; // Delay_Ms / Delay_Us: time doesn't matter here
+      case 'block': {
+        this.scopes.push(new Map());
+        try {
+          for (const x of s.body) yield* this.stmt(x);
+        } finally {
+          this.scopes.pop();
+        }
+        return;
+      }
+      case 'call': {
+        const n = s.args.length ? this.eval(s.args[0]).v : 0;
+        yield { k: 'delay', ms: s.name === 'Delay_Us' ? n / 1000 : n };
+        return;
+      }
       case 'expr':
         this.eval(s.expr);
         this.note('warn', 'A statement without = does nothing. Did you mean |= or &=?');
         return;
       case 'if':
-        if (this.eval(s.test).v !== 0) this.stmt(s.then);
-        else if (s.else) this.stmt(s.else);
+        if (this.eval(s.test).v !== 0) yield* this.stmt(s.then);
+        else if (s.else) yield* this.stmt(s.else);
         return;
+      case 'while':
+        while (this.eval(s.test).v !== 0) {
+          if (yield* this.pass(s.body)) break;
+          yield { k: 'tick' };
+        }
+        return;
+      case 'do':
+        do {
+          if (yield* this.pass(s.body)) break;
+          yield { k: 'tick' };
+        } while (this.eval(s.test).v !== 0);
+        return;
+      case 'for': {
+        this.scopes.push(new Map());
+        try {
+          if (s.init) yield* this.stmt(s.init);
+          while (!s.test || this.eval(s.test).v !== 0) {
+            if (yield* this.pass(s.body)) break;
+            if (s.update) yield* this.stmt(s.update);
+            yield { k: 'tick' };
+          }
+        } finally {
+          this.scopes.pop();
+        }
+        return;
+      }
+      case 'break':
+      case 'continue':
+      case 'return':
+        throw new Flow(s.k, s.pos);
       case 'decl': {
-        if (this.vars.has(s.name)) throw new CodeError(`'${s.name}' already exists`, s.pos);
+        if (this.scope.has(s.name)) throw new CodeError(`'${s.name}' already exists`, s.pos);
         if (MACROS[s.name] || PERIPHS.has(s.name)) throw new CodeError(`'${s.name}' is already a ch32fun name`, s.pos);
         const init = s.init ? this.eval(s.init) : { v: 0, u: false };
         if (!s.init) this.note('warn', `'${s.name}' has no initial value. In real C a local would hold garbage — here it's 0.`);
         const stored = narrow(s.type, init.v).v;
-        this.vars.set(s.name, { type: s.type, value: stored });
+        this.scope.set(s.name, { type: s.type, value: stored });
         if (s.init) {
           this.record(null, { k: 'write', target: s.name, op: '=', value: this.operand(s.init, init), stored, text: `${s.type} ${s.name} = ${printExpr(s.init)}`, notes: [] });
         }
@@ -142,7 +241,7 @@ export class Interp {
         }
         const m = this.mark();
         const effect = this.writeL(s.target, value.v);
-        const stored = s.target.k === 'ident' ? this.vars.get(s.target.name)!.value : value.v;
+        const stored = s.target.k === 'ident' ? this.lookup(s.target.name)!.value : value.v;
         this.record(null, { k: 'write', target, op: s.op, value: operand, stored, effect, text: `${target} ${s.op} ${printExpr(s.value)}`, notes: this.since(m) });
         return;
       }
@@ -166,7 +265,7 @@ export class Interp {
       }
       return;
     }
-    const cur = this.vars.get(t.name);
+    const cur = this.lookup(t.name);
     if (!cur) {
       if (MACROS[t.name]) throw new CodeError(`${t.name} is a constant macro — you can't assign to it`, t.pos);
       throw new CodeError(`'${t.name}' isn't declared. Declare it first, e.g. uint32_t ${t.name} = 0;`, t.pos);
@@ -184,7 +283,7 @@ export class Interp {
     switch (e.k) {
       case 'num': return { v: e.value, u: e.unsigned };
       case 'ident': {
-        const vr = this.vars.get(e.name);
+        const vr = this.lookup(e.name);
         if (vr) return narrow(vr.type, vr.value);
         const m = MACROS[e.name];
         if (m) return { v: m.value, u: m.unsigned };

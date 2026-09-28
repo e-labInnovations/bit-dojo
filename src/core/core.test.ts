@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Chip, resetState } from './chip';
-import { runExpression, runProgram } from './interp';
+import { Interp, runExpression, runProgram } from './interp';
+import { parseProgram } from './parser';
 import { LEVELS } from './levels';
 import { runLevel } from './runner';
 import { deriveGoal } from './goal';
@@ -159,5 +160,68 @@ describe('goal derivation', () => {
 
   it('never leaves a checked bit unexplained', () => {
     for (const l of LEVELS) for (const t of deriveGoal(l).targets) expect(t.bits.some((b) => b.k === 'vary'), `${l.id} ${t.key}`).toBe(false);
+  });
+});
+
+describe('loops', () => {
+  const run = (src: string) => {
+    const r = runProgram(src, new Chip(resetState()));
+    if (!r.ok) throw r.error;
+    return Object.fromEntries([...r.interp.vars].map(([k, v]) => [k, v.value]));
+  };
+
+  it('runs while, for, do-while, break and continue', () => {
+    expect(run('int n = 0; int i = 0; while (i < 5) { n += i; i++; }').n).toBe(10);
+    expect(run('uint32_t m = 0; for (int b = 0; b < 8; b++) { if (b == 3) continue; m |= 1u << b; }').m).toBe(0xf7);
+    expect(run('int k = 0; do { k++; } while (k < 3);').k).toBe(3);
+    expect(run('int k = 0; while (1) { k++; if (k == 7) break; }').k).toBe(7);
+  });
+
+  it('gives each loop pass a fresh block scope', () => {
+    expect(run('int total = 0; for (int i = 0; i < 3; i++) { int sq = i * i; total += sq; }').total).toBe(5);
+  });
+
+  it('accepts a main() wrapper, #include and return', () => {
+    expect(run('#include "ch32fun.h"\nint main(void) { int x = 2; x <<= 3; return 0; x = 99; }').x).toBe(16); // return stops the program
+    expect(() => run('#define LED PC1')).toThrow(/#define isn't supported/);
+  });
+
+  it('stops a never-ending loop in run-once mode', () => {
+    expect(() => run('while (1) { }')).toThrow(/never ends/);
+    expect(() => run('break;')).toThrow(/inside a loop/);
+  });
+
+  it('pauses at Delay_Ms and loop passes when stepped', () => {
+    const interp = new Interp(new Chip(resetState()));
+    const pauses = [...interp.exec(parseProgram('for (int i = 0; i < 2; i++) { Delay_Ms(250); }'))];
+    expect(pauses).toEqual([{ k: 'delay', ms: 250 }, { k: 'tick' }, { k: 'delay', ms: 250 }, { k: 'tick' }]);
+  });
+
+  it('lets a running loop react to the button (toggle example)', () => {
+    const chip = new Chip(resetState());
+    const interp = new Interp(chip);
+    interp.maxSteps = Infinity;
+    const src = `RCC->APB2PCENR |= RCC_APB2Periph_GPIOC | RCC_APB2Periph_GPIOD;
+      GPIOC->CFGLR &= ~(0xf << (4*1)); GPIOC->CFGLR |= (GPIO_Speed_10MHz | GPIO_CNF_OUT_PP) << (4*1);
+      GPIOD->CFGLR &= ~(0xf << (4*2)); GPIOD->CFGLR |= GPIO_CNF_IN_PUPD << (4*2); GPIOD->BSHR = (1 << 2);
+      int last = 1;
+      while (1) { int now = (GPIOD->INDR >> 2) & 1; if (last == 1 && now == 0) GPIOC->OUTDR ^= (1 << 1); last = now; Delay_Ms(10); }`;
+    const gen = interp.exec(parseProgram(src));
+    const passes = (n: number) => {
+      for (let i = 0; i < n; i++) gen.next();
+    };
+    const led = () => chip.drive('GPIOC', 1);
+    passes(6);
+    expect(led()).toBe('low');
+    chip.state.external.PD2 = 'low'; // press
+    passes(6);
+    expect(led()).toBe('high');
+    passes(6); // still held: no second toggle
+    expect(led()).toBe('high');
+    chip.state.external.PD2 = 'float'; // release
+    passes(6);
+    chip.state.external.PD2 = 'low'; // press again
+    passes(6);
+    expect(led()).toBe('low');
   });
 });

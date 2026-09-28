@@ -42,6 +42,13 @@ export function tokenize(src: string): Token[] {
       while (i < src.length && src[i] !== '\n') i++;
       continue;
     }
+    if (c === '#') {
+      const eol = src.indexOf('\n', i);
+      const line = src.slice(i, eol < 0 ? src.length : eol);
+      if (!/^#\s*include\b/.test(line)) throw new CodeError(`${line.split(/\s/)[0]} isn't supported here — write the value directly (only #include lines are ignored)`, i);
+      i = eol < 0 ? src.length : eol;
+      continue;
+    }
     if (src.startsWith('/*', i)) {
       const end = src.indexOf('*/', i + 2);
       if (end < 0) throw new CodeError('Unclosed /* comment', i);

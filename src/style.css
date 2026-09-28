@@ -626,6 +626,18 @@ dialog.about { width: min(560px, calc(100vw - 32px)); }
 .about-note { margin: 16px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--up-bg); font-size: 14px; }
 .about-small { margin: 12px 0 0; color: var(--muted); font-size: 12.5px; }
 
+/* ───────────── live sandbox */
+.editor-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.editor-head .editor-label { margin-bottom: 0; }
+.examples { font: 500 13px var(--sans); color: var(--text); background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 8px; padding: 4px 8px; }
+.btn-run.btn-stop { background: var(--bad); border-color: var(--bad); color: #fff; }
+.run-status { margin-top: 8px; font-size: 13px; padding: 6px 10px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); }
+.run-running b { color: var(--good); }
+.live-dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--good); vertical-align: 1px; animation: live-pulse 1s ease-in-out infinite; }
+.run-error b { color: var(--bad); }
+@keyframes live-pulse { 50% { opacity: 0.25; } }
+.col-task > .board { margin-top: 16px; }
+
 /* The `font` shorthands above reset ligatures, hence !important. They'd draw |= as ⊨ and -> as →,
    wrong glyphs for people learning C. */
 * { font-variant-ligatures: none !important; font-feature-settings: 'liga' 0, 'calt' 0 !important; }
